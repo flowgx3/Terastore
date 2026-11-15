@@ -129,3 +129,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_logs_guild_date ON audit_logs(guild_id, created_at DESC);
+
+
+-- Alert polling state. Cursors are scoped per guild wallet; chain blocks are scanned once globally.
+ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS last_seen_cursor TEXT;
+ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMPTZ;
+ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS min_alert_usd NUMERIC(30, 8) NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS chain_scan_state (
+  chain TEXT PRIMARY KEY,
+  last_scanned_block BIGINT NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
