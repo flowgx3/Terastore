@@ -1,1 +1,1 @@
-require("./src/index");\n
+require("./src/index");
