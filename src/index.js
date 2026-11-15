@@ -81,7 +81,7 @@ client.on("interactionCreate",async i=>{
   }
   if(i.commandName==="onchain"){
    const e=new EmbedBuilder().setColor(0x16A34A).setTitle("TERA ON-CHAIN").setDescription("Read-only blockchain intelligence. No private keys, signing, custody or trading.")
-    .addFields({name:"Live RPC",value:"BTC • ETH • SOL • BNB • BASE • POL • ARB • OP • AVAX",inline:true},{name:"Wallet analysis",value:"Available",inline:true},{name:"Wallet watchlist",value:pool?"PostgreSQL configured":"Database not configured",inline:true},{name:"Whale feed / Token risk",value:"Indexer integration pending — no fabricated results."})
+    .addFields({name:"Live RPC",value:"BTC • ETH • SOL • BNB • BASE • POL • ARB • OP • AVAX",inline:true},{name:"Wallet analysis",value:"Available",inline:true},{name:"Wallet watchlist",value:pool?"PostgreSQL configured":"Database not configured",inline:true},{name:"Whale feed / Token risk",value:"Wallet native-transfer alerts enabled when a channel is configured."})
     .setFooter({text:"MVP • Public blockchain data only"});
    return i.editReply({embeds:[e]});
   }
@@ -139,7 +139,7 @@ client.on("interactionCreate",async i=>{
     const q=await pool.query("SELECT alert_channel_id,alert_threshold_usd FROM guilds WHERE guild_id=$1",[i.guildId]);
     const n=await pool.query("SELECT count(*)::int AS count FROM tracked_wallets WHERE guild_id=$1 AND enabled=true",[i.guildId]);
     const row=q.rows[0]||{};
-    return i.editReply({content:"🔔 **Alert system**\n📣 Channel: "+(row.alert_channel_id?"<#"+row.alert_channel_id+">":"Not configured — use /alerts channel")+"\n💵 USD threshold: $"+Number(row.alert_threshold_usd||0).toLocaleString("en-US")+"\n👛 Watched wallets: "+n.rows[0].count+"\n🛰️ Polling: enabled\n⚠️ Native transfers only; token transfers are not monitored yet."});
+    return i.editReply({content:"🔔 **Alert system**\n📣 Channel: "+(row.alert_channel_id?"<#"+row.alert_channel_id+">":"Not configured — use /alerts channel")+"\n💵 USD threshold: $"+Number(row.alert_threshold_usd||0).toLocaleString("en-US")+"\n👛 Watched wallets: "+n.rows[0].count+"\n🛰️ Polling: enabled\n⚠️ Native-asset transfers only; ERC-20 and SPL token transfer alerts are not enabled yet."});
    }
   }
  }catch(e){console.error("Interaction error:",e);return i.editReply({embeds:[errorEmbed(e.message||"Unexpected error. Check bot logs.")]});}
