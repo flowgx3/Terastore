@@ -7,7 +7,7 @@ const original = process.cwd();
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "trace-x-"));
 try {
   process.chdir(temp);
-  const engine = require("./" + path.relative(original, path.join(original, "src/research/engine.js")));
+  const engine = require(path.join(original, "src/research/engine.js"));
   const report = engine.analyzeText("SGVsbG8=");
   assert.equal(report.candidates[0].preview, "Hello");
   assert.equal(report.candidates[0].printableRatio, 1);
@@ -16,7 +16,7 @@ try {
   assert.throws(() => engine.hexDecode("abc"));
   assert.equal(engine.xorRepeat("4142", "01"), "4043");
 
-  const store = require("./" + path.relative(original, path.join(original, "src/research/store.js")));
+  const store = require(path.join(original, "src/research/store.js"));
   const c = store.createCase("Test case", "CI verification");
   const c2 = store.addEvidence(c.id, "known plaintext", "Hello", "test");
   assert.equal(c2.evidence[0].sha256, engine.sha256("Hello"));
