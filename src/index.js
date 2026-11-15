@@ -259,7 +259,7 @@ client.on("interactionCreate", async interaction => {
         .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.")
         .addFields(products.map(p => ({
           name: `${p.name.toUpperCase()} | ${p.price.toLocaleString("en-US")} ${CURRENCY}`.slice(0, 256),
-          value: `>>> **${p.stock > 0 ? `${String(p.stock).padStart(2, "0")} AVAILABLE` : "OUT OF STOCK"}**\n>>> ${p.description || "No description."}`.slice(0, 1024),
+          value: `>>> **${p.stock > 0 ? `${String(p.stock).padStart(2, "0")} AVAILABLE` : "OUT OF STOCK"}**\n${p.description || "No description."}`.slice(0, 1024),
           inline: false
         })));
       const catalogImage = products.find(p => p.imageUrl && /^https:\/\//i.test(p.imageUrl))?.imageUrl;
