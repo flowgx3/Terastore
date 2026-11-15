@@ -1,10 +1,20 @@
 {
-  "name":"tera-onchain",
-  "version":"2.0.0",
-  "private":true,
-  "description":"Read-only multi-chain intelligence Discord bot",
-  "main":"src/index.js",
-  "scripts":{"start":"node src/index.js","deploy":"node src/deploy-commands.js"},
-  "engines":{"node":">=20"},
-  "dependencies":{"discord.js":"^14.22.1","dotenv":"^16.6.1","pg":"^8.16.3"}
+  "name": "tera-onchain",
+  "version": "2.0.0",
+  "private": true,
+  "description": "TERA ON-CHAIN and GSMG puzzle solver",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js",
+    "start:gsmg": "node src/gsmg-bot.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "discord.js": "^14.22.1",
+    "dotenv": "^16.6.1",
+    "pg": "^8.16.3"
+  }
 }
