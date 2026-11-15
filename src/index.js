@@ -229,6 +229,17 @@ client.on("interactionCreate", async interaction => {
 
     if (command === "product") {
       const sub = interaction.options.getSubcommand();
+      if (sub === "image") {
+        if (!staff(interaction)) return interaction.reply({ content: "Staff only.", ephemeral: true });
+        const productName = interaction.options.getString("product").trim();
+        const imageUrl = interaction.options.getString("image_url").trim();
+        if (!/^https:\/\//i.test(imageUrl)) return interaction.reply({ content: "رابط الصورة يجب أن يبدأ بـ https://", ephemeral: true });
+        const product = data.products.find(p => p.name.toLowerCase() === productName.toLowerCase());
+        if (!product) return interaction.reply({ content: "Product not found.", ephemeral: true });
+        product.imageUrl = imageUrl;
+        writeData(data);
+        return interaction.reply({ content: `تم تحديث صورة **${product.name}**.`, ephemeral: true });
+      }
       if (sub === "add") {
         if (!staff(interaction)) return interaction.reply({ content: "Staff only.", ephemeral: true });
         const name = interaction.options.getString("name").trim();
