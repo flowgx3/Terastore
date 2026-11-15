@@ -17,6 +17,7 @@ async function ensureAlertSchema(){
  await pool.query("ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS min_alert_usd NUMERIC(30,8) NOT NULL DEFAULT 0");
  await pool.query("ALTER TABLE guilds ADD COLUMN IF NOT EXISTS alert_threshold_usd NUMERIC(30,8) NOT NULL DEFAULT 0");
  await pool.query("CREATE TABLE IF NOT EXISTS chain_scan_state(chain TEXT PRIMARY KEY,last_scanned_block BIGINT NOT NULL DEFAULT 0,updated_at TIMESTAMPTZ NOT NULL DEFAULT now())");
+ await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_events_wallet_dedupe ON alert_events(guild_id,chain,transaction_id,event_index) WHERE rule_id IS NULL");
 }
 client.once("ready",async()=>{
  console.log(`TERA ON-CHAIN online as ${client.user.tag}`);
@@ -120,6 +121,7 @@ client.on("interactionCreate",async i=>{
   }
   if(i.commandName==="token") return i.editReply({embeds:[errorEmbed("Token risk scanning is not enabled yet. Reliable scoring requires contract metadata, liquidity/holder signals and source evidence. No score will be fabricated.") ]});
   if(i.commandName==="alerts"){
+   if(!i.memberPermissions?.has("ManageGuild")) throw new Error("Only members with Manage Server permission can configure alerts.");
    await ensureGuild(i.guild);
    const sub=i.options.getSubcommand();
    if(sub==="channel"){
