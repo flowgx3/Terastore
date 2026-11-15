@@ -28,6 +28,12 @@ function usdValue(chain,amount){
  return Number.isFinite(price)?Math.abs(amount)*price:null;
 }
 function norm(a){return String(a||"").toLowerCase();}
+function txUrl(chain,id){
+ if(chain==="bitcoin")return "https://mempool.space/tx/"+id;
+ if(chain==="solana")return "https://solscan.io/tx/"+id;
+ const bases={ethereum:"https://etherscan.io/tx/",bsc:"https://bscscan.com/tx/",base:"https://basescan.org/tx/",polygon:"https://polygonscan.com/tx/",arbitrum:"https://arbiscan.io/tx/",optimism:"https://optimistic.etherscan.io/tx/",avalanche:"https://snowtrace.io/tx/"};
+ return (bases[chain]||"")+id;
+}
 async function sendAlert(client,pool,wallet,event){
  const usd=usdValue(wallet.chain,event.amount);
  const threshold=Number(wallet.min_alert_usd||0);
@@ -82,7 +88,7 @@ async function pollBitcoin(client,pool,wallet){
   const spent=(tx.vin||[]).filter(v=>v.prevout?.scriptpubkey_address===wallet.address).reduce((s,v)=>s+Number(v.prevout.value||0),0);
   const delta=(received-spent)/1e8;
   if(delta===0) continue;
-  await recordAndSend(client,pool,wallet,{id:tx.txid,index:0,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"BTC",url:CHAINS.bitcoin.explorer+wallet.address,source:"mempool.space"});
+  await recordAndSend(client,pool,wallet,{id:tx.txid,index:0,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"BTC",url:txUrl("bitcoin",tx.txid),source:"mempool.space"});
  }
  await pool.query("UPDATE tracked_wallets SET last_seen_cursor=$1,last_checked_at=now() WHERE id=$2",[newest,wallet.id]);
 }
@@ -99,7 +105,7 @@ async function pollSolana(client,pool,wallet){
   const idx=keys.indexOf(wallet.address);if(idx<0)continue;
   const delta=(Number(tx.meta.postBalances[idx])-Number(tx.meta.preBalances[idx]))/1e9;
   if(!delta)continue;
-  await recordAndSend(client,pool,wallet,{id:s.signature,index:0,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"SOL",url:CHAINS.solana.explorer+wallet.address,source:"Solana JSON-RPC"});
+  await recordAndSend(client,pool,wallet,{id:s.signature,index:0,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"SOL",url:txUrl("solana",s.signature),source:"Solana JSON-RPC"});
  }
  await pool.query("UPDATE tracked_wallets SET last_seen_cursor=$1,last_checked_at=now() WHERE id=$2",[newest,wallet.id]);
 }
@@ -120,7 +126,7 @@ async function pollEvmChain(client,pool,chain,wallets){
    const candidates=[...(byAddress.get(from)||[]),...(byAddress.get(to)||[])];
    for(const w of candidates){
     const direction=norm(w.address)===to?"in":"out";
-    await recordAndSend(client,pool,w,{id:tx.hash,index:0,amount:value,direction,symbol:CHAINS[chain].symbol,url:CHAINS[chain].explorer+w.address,source:"Public JSON-RPC"});
+    await recordAndSend(client,pool,w,{id:tx.hash,index:0,amount:value,direction,symbol:CHAINS[chain].symbol,url:txUrl(chain,tx.hash),source:"Public JSON-RPC"});
    }
   }
   await pool.query("INSERT INTO chain_scan_state(chain,last_scanned_block) VALUES($1,$2) ON CONFLICT(chain) DO UPDATE SET last_scanned_block=EXCLUDED.last_scanned_block,updated_at=now()",[chain,n]);
