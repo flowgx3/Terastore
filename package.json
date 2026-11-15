@@ -1,21 +1,18 @@
 {
-  "name": "tera-onchain",
-  "version": "2.0.0",
+  "name": "tera-gsmg-solver",
+  "version": "1.0.0",
   "private": true,
-  "description": "TERA ON-CHAIN and GSMG puzzle solver",
+  "description": "Discord bot dedicated to GSMG.IO 5 BTC puzzle research",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "deploy": "node src/deploy-commands.js",
-    "start:gsmg": "node src/gsmg-bot.js",
-    "verify:gsmg": "node src/gsmg/verify.js"
+    "start": "node index.js",
+    "verify": "node src/gsmg/verify.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "discord.js": "^14.22.1",
-    "dotenv": "^16.6.1",
-    "pg": "^8.16.3"
+    "dotenv": "^16.6.1"
   }
-}
+}\n
