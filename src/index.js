@@ -253,21 +253,21 @@ client.on("interactionCreate", async interaction => {
         writeData(data);
         return interaction.reply({ content: `Added **${name}** — ${price.toLocaleString("en-US")} ${CURRENCY}. Stock starts at zero.`, ephemeral: true });
       }
-      const products = data.products.filter(p => p.active).slice(0, 10);
+      const products = data.products.filter(p => p.active).slice(0, 25);
       if (!products.length) return interaction.reply({ content: "لا توجد منتجات معروضة حالياً.", ephemeral: true });
-      const header = new EmbedBuilder().setColor(0x8b5cf6).setTitle("🛍️ TERA STORE — PRODUCT LIST")
-        .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.");
-      const productEmbeds = products.map(p => {
-        const card = new EmbedBuilder().setColor(p.stock > 0 ? 0x22c55e : 0xef4444)
-          .setTitle(`${p.name.toUpperCase()} | ${p.price.toLocaleString("en-US")} ${CURRENCY}`)
-          .setDescription(`**${p.stock > 0 ? `${String(p.stock).padStart(2, "0")} AVAILABLE` : "OUT OF STOCK"}**\n${p.description || "No description."}`);
-        if (p.imageUrl && /^https:\/\//i.test(p.imageUrl)) card.setThumbnail(p.imageUrl);
-        return card;
-      });
+      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("🛍️ TERA STORE — PRODUCT LIST")
+        .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.")
+        .addFields(products.map(p => ({
+          name: `${p.name.toUpperCase()} | ${p.price.toLocaleString("en-US")} ${CURRENCY}`.slice(0, 256),
+          value: `**${p.stock > 0 ? `${String(p.stock).padStart(2, "0")} AVAILABLE` : "OUT OF STOCK"}**\n${p.description || "No description."}`.slice(0, 1024),
+          inline: false
+        })));
+      const catalogImage = products.find(p => p.imageUrl && /^https:\/\//i.test(p.imageUrl))?.imageUrl;
+      if (catalogImage) embed.setThumbnail(catalogImage);
       const menu = new StringSelectMenuBuilder().setCustomId("tera_product_select")
         .setPlaceholder("🛒 اختر منتجاً للشراء")
         .addOptions(products.map(p => ({ label: p.name.slice(0, 100), description: `${p.price.toLocaleString("en-US")} ${CURRENCY} • المخزون ${p.stock}`.slice(0, 100), value: p.id, emoji: p.stock > 0 ? "🟢" : "🔴", default: false })));
-      return interaction.reply({ embeds: [header, ...productEmbeds], components: [new ActionRowBuilder().addComponents(menu)] });
+      return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
     }
 
     if (command === "stock") {
