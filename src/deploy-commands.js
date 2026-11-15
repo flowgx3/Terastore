@@ -1,50 +1,40 @@
 require("dotenv").config();
-const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { REST, Routes, SlashCommandBuilder } = require("discord.js");
 
 const commands = [
-  new SlashCommandBuilder().setName("setup").setDescription("Create Tera Store server structure").setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-  new SlashCommandBuilder().setName("panel").setDescription("Post the support ticket panel"),
-  new SlashCommandBuilder().setName("ticket").setDescription("Open a private support ticket")
-    .addStringOption(o => o.setName("reason").setDescription("What do you need help with?").setMaxLength(300)),
-  new SlashCommandBuilder().setName("product").setDescription("Manage products")
-    .addSubcommand(s => s.setName("add").setDescription("Add a product")
-      .addStringOption(o => o.setName("name").setDescription("Product name").setRequired(true).setMaxLength(80))
-      .addIntegerOption(o => o.setName("price").setDescription("Price in DZD").setRequired(true).setMinValue(1))
-      .addStringOption(o => o.setName("description").setDescription("Description").setMaxLength(500))
-      .addStringOption(o => o.setName("image_url").setDescription("Product image URL (https://...)").setMaxLength(500)))
-    .addSubcommand(s => s.setName("image").setDescription("Set or change a product image")
-      .addStringOption(o => o.setName("product").setDescription("Product name").setRequired(true))
-      .addStringOption(o => o.setName("image_url").setDescription("Image URL starting with https://").setRequired(true).setMaxLength(500)))
-    .addSubcommand(s => s.setName("list").setDescription("List products")),
-  new SlashCommandBuilder().setName("stock").setDescription("Manage inventory")
-    .addSubcommand(s => s.setName("set").setDescription("Set stock")
-      .addStringOption(o => o.setName("product").setDescription("Product name").setRequired(true))
-      .addIntegerOption(o => o.setName("quantity").setDescription("Quantity").setRequired(true).setMinValue(0)))
-    .addSubcommand(s => s.setName("add").setDescription("Add stock")
-      .addStringOption(o => o.setName("product").setDescription("Product name").setRequired(true))
-      .addIntegerOption(o => o.setName("quantity").setDescription("Quantity").setRequired(true).setMinValue(1)))
-    .addSubcommand(s => s.setName("remove").setDescription("Remove stock")
-      .addStringOption(o => o.setName("product").setDescription("Product name").setRequired(true))
-      .addIntegerOption(o => o.setName("quantity").setDescription("Quantity").setRequired(true).setMinValue(1)))
-    .addSubcommand(s => s.setName("list").setDescription("List stock levels")),
-  new SlashCommandBuilder().setName("order").setDescription("Request or manage an order")
-    .addSubcommand(s => s.setName("create").setDescription("Request a product")
-      .addStringOption(o => o.setName("product").setDescription("Exact product name").setRequired(true))
-      .addIntegerOption(o => o.setName("quantity").setDescription("Quantity").setRequired(true).setMinValue(1)))
-    .addSubcommand(s => s.setName("manage").setDescription("Confirm or reject a pending order (staff only)")
-      .addStringOption(o => o.setName("order_id").setDescription("Order ID, e.g. TS-ABC123").setRequired(true))
-      .addStringOption(o => o.setName("action").setDescription("Decision").setRequired(true)
-        .addChoices({ name: "Confirm payment and fulfill", value: "confirm" }, { name: "Reject order", value: "reject" })))
+  new SlashCommandBuilder().setName("onchain").setDescription("TERA ON-CHAIN status and supported networks"),
+  new SlashCommandBuilder().setName("wallet").setDescription("Analyze and monitor blockchain wallets")
+    .addSubcommand(s => s.setName("analyze").setDescription("Read live public wallet balances")
+      .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(
+        {name:"Ethereum",value:"ethereum"},{name:"Solana",value:"solana"}))
+      .addStringOption(o => o.setName("address").setDescription("Public wallet address").setRequired(true).setMaxLength(100)))
+    .addSubcommand(s => s.setName("watch-add").setDescription("Add a wallet to this server's watchlist")
+      .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(
+        {name:"Ethereum",value:"ethereum"},{name:"Solana",value:"solana"}))
+      .addStringOption(o => o.setName("address").setDescription("Public wallet address").setRequired(true).setMaxLength(100))
+      .addStringOption(o => o.setName("label").setDescription("Optional label").setMaxLength(50)))
+    .addSubcommand(s => s.setName("watch-remove").setDescription("Remove a wallet from this server's watchlist")
+      .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(
+        {name:"Ethereum",value:"ethereum"},{name:"Solana",value:"solana"}))
+      .addStringOption(o => o.setName("address").setDescription("Wallet address").setRequired(true).setMaxLength(100)))
+    .addSubcommand(s => s.setName("watch-list").setDescription("List wallets watched by this server")),
+  new SlashCommandBuilder().setName("whale").setDescription("Large on-chain transfer intelligence")
+    .addSubcommand(s => s.setName("latest").setDescription("Show latest indexed whale transfers")),
+  new SlashCommandBuilder().setName("token").setDescription("Token intelligence and risk screening")
+    .addSubcommand(s => s.setName("scan").setDescription("Scan a token contract or mint")
+      .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(
+        {name:"Ethereum",value:"ethereum"},{name:"Solana",value:"solana"}))
+      .addStringOption(o => o.setName("address").setDescription("Token contract or mint address").setRequired(true).setMaxLength(100))),
+  new SlashCommandBuilder().setName("alerts").setDescription("Configure on-chain alerts")
+    .addSubcommand(s => s.setName("status").setDescription("Show alert system readiness"))
 ].map(c => c.toJSON());
 
 async function main() {
   const { DISCORD_TOKEN, CLIENT_ID, GUILD_ID } = process.env;
-  if (!DISCORD_TOKEN || !CLIENT_ID) throw new Error("Set DISCORD_TOKEN and CLIENT_ID in .env");
-  const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
-  const route = GUILD_ID
-    ? Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID)
-    : Routes.applicationCommands(CLIENT_ID);
-  await rest.put(route, { body: commands });
-  console.log("Slash commands registered.");
+  if (!DISCORD_TOKEN || !CLIENT_ID) throw new Error("Missing DISCORD_TOKEN or CLIENT_ID");
+  const rest = new REST({version:"10"}).setToken(DISCORD_TOKEN);
+  const route = GUILD_ID ? Routes.applicationGuildCommands(CLIENT_ID,GUILD_ID) : Routes.applicationCommands(CLIENT_ID);
+  await rest.put(route,{body:commands});
+  console.log(`Registered ${commands.length} TERA ON-CHAIN commands (${GUILD_ID ? "guild test" : "global"} scope).`);
 }
-main().catch(error => { console.error(error); process.exit(1); });
+main().catch(e=>{console.error(e);process.exit(1);});
