@@ -6,7 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node index.js",
-    "verify": "node src/gsmg/verify.js"
+    "verify": "node src/gsmg/verify.js",
+    "verify:research": "node src/research/verify.js"
   },
   "engines": {
     "node": ">=20"
