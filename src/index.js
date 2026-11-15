@@ -32,8 +32,8 @@ async function setupServer(guild){
  const everyone=guild.roles.everyone;
  const staffOverwrites=[
   {id:everyone.id,deny:[PermissionFlagsBits.ViewChannel]},
-  {id:roles["Tera Owner"].id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]},
-  {id:roles["Tera Admin"].id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}
+  {id:roles["👑 Tera Owner"].id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]},
+  {id:roles["🛡️ Tera Admin"].id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}
  ];
  const categories=[
   {name:"📌 START HERE",channels:[["👋・welcome","Welcome to TERA ON-CHAIN."],["📜・rules","Server rules and safety guidelines."],["📢・announcements","Official TERA updates."]]},
