@@ -10,7 +10,8 @@ const commands = [
     .addSubcommand(s => s.setName("add").setDescription("Add a product")
       .addStringOption(o => o.setName("name").setDescription("Product name").setRequired(true).setMaxLength(80))
       .addIntegerOption(o => o.setName("price").setDescription("Price in DZD").setRequired(true).setMinValue(1))
-      .addStringOption(o => o.setName("description").setDescription("Description").setMaxLength(500)))
+      .addStringOption(o => o.setName("description").setDescription("Description").setMaxLength(500))
+      .addStringOption(o => o.setName("image_url").setDescription("Product image URL (https://...)").setMaxLength(500)))
     .addSubcommand(s => s.setName("list").setDescription("List products")),
   new SlashCommandBuilder().setName("stock").setDescription("Manage inventory")
     .addSubcommand(s => s.setName("set").setDescription("Set stock")
