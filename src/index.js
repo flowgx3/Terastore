@@ -81,7 +81,28 @@ async function openTicket(interaction, reason) {
 client.on("interactionCreate", async interaction => {
   try {
     if (interaction.isButton()) {
-      if (interaction.customId === "tera_ticket_open") await openTicket(interaction, "Support panel request");
+      if (interaction.customId === "tera_ticket_open") {
+        await openTicket(interaction, "Support panel request");
+        return;
+      }
+      if (interaction.customId.startsWith("tera_buy_")) {
+        const productId = interaction.customId.slice("tera_buy_".length);
+        const data = readData();
+        const product = data.products.find(p => p.id === productId && p.active);
+        if (!product) return interaction.reply({ content: "هذا المنتج لم يعد متاحاً.", ephemeral: true });
+        if (product.stock < 1) return interaction.reply({ content: "نفد المخزون حالياً. افتح تذكرة للاستفسار.", ephemeral: true });
+        const order = {
+          id: `TS-${Date.now().toString(36).toUpperCase()}`,
+          userId: interaction.user.id, productId: product.id, product: product.name,
+          quantity: 1, total: product.price, status: "pending_manual_confirmation",
+          createdAt: new Date().toISOString()
+        };
+        data.orders.push(order);
+        writeData(data);
+        const log = interaction.guild.channels.cache.find(c => c.name.includes("orders-log") && c.isTextBased());
+        if (log) await log.send(`🛒 طلب جديد **${order.id}** من <@${interaction.user.id}>\n📦 **${product.name}** × 1\n💰 الإجمالي: **${order.total.toLocaleString("en-US")} ${CURRENCY}**\n🕒 بانتظار تأكيد الدفع من الإدارة.`);
+        return interaction.reply({ content: `✅ تم تسجيل طلبك **${order.id}** لمنتج **${product.name}**. الإجمالي **${order.total.toLocaleString("en-US")} ${CURRENCY}**. أرسل إثبات الدفع عبر تذكرة الدعم؛ الطلب لا يُعتمد حتى تتحقق الإدارة من الدفع.`, ephemeral: true });
+      }
       return;
     }
     if (!interaction.isChatInputCommand()) return;
@@ -157,13 +178,22 @@ client.on("interactionCreate", async interaction => {
         writeData(data);
         return interaction.reply({ content: `Added **${name}** — ${price.toLocaleString("en-US")} ${CURRENCY}. Stock starts at zero.`, ephemeral: true });
       }
-      const products = data.products.filter(p => p.active);
-      if (!products.length) return interaction.reply({ content: "No products are listed yet.", ephemeral: true });
-      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("🛍️ Tera Store — Catalog")
-        .setDescription("✨ اختر منتجك من القائمة\n\n" + products.slice(0, 20).map(p =>
-          `📦 **${p.name}** — 💰 ${p.price.toLocaleString("en-US")} ${CURRENCY}\n📝 ${p.description}\n${p.stock > 0 ? "🟢" : "🔴"} المخزون: ${p.stock}`
-        ).join("\n\n"));
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      const products = data.products.filter(p => p.active).slice(0, 5);
+      if (!products.length) return interaction.reply({ content: "لا توجد منتجات معروضة حالياً.", ephemeral: true });
+      const header = new EmbedBuilder().setColor(0x8b5cf6).setTitle("👑 TERA STORE  |  المتجر الرسمي")
+        .setDescription("🛍️ اختر المنتج الذي تريده واضغط **شراء الآن**.\n🔒 لا ترسل كلمة المرور أو رموز التحقق لأي شخص.\n━━━━━━━━━━━━━━━━━━━━");
+      const cards = products.map(p => new EmbedBuilder().setColor(0x8b5cf6)
+        .setTitle(`📦 ${p.name}`)
+        .setDescription(`${p.description}\n\n💰 **السعر**\n${p.price.toLocaleString("en-US")} ${CURRENCY}\n\n${p.stock > 0 ? "🟢 متوفر" : "🔴 غير متوفر"}  •  الكمية: **${p.stock}**`)
+        .setFooter({ text: "TERA STORE • Digital Products & Subscriptions" }));
+      const rows = products.map(p => new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`tera_buy_${p.id}`)
+          .setLabel(p.stock > 0 ? "🛒 شراء الآن" : "غير متوفر")
+          .setStyle(p.stock > 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+          .setDisabled(p.stock < 1)
+      ));
+      return interaction.reply({ content: "✨ **TERA STORE — DIGITAL MARKETPLACE**", embeds: [header, ...cards], components: rows });
     }
 
     if (command === "stock") {
