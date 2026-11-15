@@ -6,7 +6,9 @@ const WALLET_CHAINS = [
   {name:"BNB Smart Chain",value:"bsc"},{name:"Base",value:"base"},{name:"Polygon",value:"polygon"},
   {name:"Arbitrum One",value:"arbitrum"},{name:"Optimism",value:"optimism"},{name:"Avalanche C-Chain",value:"avalanche"}
 ];
-const TOKEN_CHAINS = WALLET_CHAINS.filter(c=>c.value!=="bitcoin");\n\nconst commands = [
+const TOKEN_CHAINS = WALLET_CHAINS.filter(c=>c.value!=="bitcoin");
+
+const commands = [
   new SlashCommandBuilder().setName("setup").setDescription("⚠️ Delete all server channels and rebuild TERA ON-CHAIN").setDefaultMemberPermissions(8).addBooleanOption(o => o.setName("confirm").setDescription("Confirm deleting ALL channels and their contents").setRequired(true)),
   new SlashCommandBuilder().setName("onchain").setDescription("TERA ON-CHAIN status and supported networks"),
   new SlashCommandBuilder().setName("wallet").setDescription("Analyze and monitor blockchain wallets")
@@ -25,7 +27,7 @@ const TOKEN_CHAINS = WALLET_CHAINS.filter(c=>c.value!=="bitcoin");\n\nconst comm
     .addSubcommand(s => s.setName("latest").setDescription("Show latest indexed whale transfers")),
   new SlashCommandBuilder().setName("token").setDescription("Token intelligence and risk screening")
     .addSubcommand(s => s.setName("scan").setDescription("Scan a token contract or mint")
-      .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(...WALLET_CHAINS))
+      .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(...TOKEN_CHAINS))
       .addStringOption(o => o.setName("address").setDescription("Token contract or mint address").setRequired(true).setMaxLength(100))),
   new SlashCommandBuilder().setName("alerts").setDescription("Configure on-chain alerts")
     .addSubcommand(s => s.setName("status").setDescription("Show alert system readiness"))
