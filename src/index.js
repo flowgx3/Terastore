@@ -242,10 +242,10 @@ client.on("interactionCreate", async interaction => {
       }
       const products = data.products.filter(p => p.active).slice(0, 25);
       if (!products.length) return interaction.reply({ content: "لا توجد منتجات معروضة حالياً.", ephemeral: true });
-      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("👑 TERA STORE")
-        .setDescription("🛍️ **مرحباً بك في متجر Tera**\nاختر المنتج من القائمة بالأسفل لعرض طلبك.\n\n━━━━━━━━━━━━━━━━━━━━\n" +
-          products.map((p, i) => `**${i + 1}. ${p.name}**\n💰 ${p.price.toLocaleString("en-US")} ${CURRENCY}  •  ${p.stock > 0 ? "🟢 متوفر" : "🔴 نفد المخزون"}\n📝 ${p.description}`).join("\n\n") +
-          "\n\n━━━━━━━━━━━━━━━━━━━━\n🔐 الدفع والتسليم يتمان بعد مراجعة الإدارة.");
+      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("PRODUCT LIST")
+        .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.\\n\\n" +
+          products.map(p => "```\\n" + p.name.toUpperCase() + " | " + p.price.toLocaleString("en-US") + " " + CURRENCY + "\\n" +
+            String(Math.max(0, p.stock)).padStart(2, "0") + " AVAILABLE\\n" + (p.description || "No description.") + "\\n```").join("\\n\\n"));
       const menu = new StringSelectMenuBuilder().setCustomId("tera_product_select")
         .setPlaceholder("🛒 اختر منتجاً للشراء")
         .addOptions(products.map(p => ({ label: p.name.slice(0, 100), description: `${p.price.toLocaleString("en-US")} ${CURRENCY} • المخزون ${p.stock}`.slice(0, 100), value: p.id, emoji: p.stock > 0 ? "🟢" : "🔴", default: false })));
