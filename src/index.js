@@ -2,6 +2,7 @@ require("dotenv").config();
 const {Client,GatewayIntentBits,EmbedBuilder}=require("discord.js");
 const {Pool}=require("pg");
 const {validAddress,analyzeWallet}=require("./services/chain-data");
+const {startAlertWorker}=require("./services/alert-worker");
 const client=new Client({intents:[GatewayIntentBits.Guilds]});
 const pool=process.env.DATABASE_URL?new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_SSL==="false"?false:{rejectUnauthorized:false},max:3,idleTimeoutMillis:10000,connectionTimeoutMillis:8000}):null;
 async function ensureGuild(guild){
@@ -9,7 +10,18 @@ async function ensureGuild(guild){
  await pool.query("INSERT INTO guilds(guild_id,name) VALUES($1,$2) ON CONFLICT(guild_id) DO UPDATE SET name=EXCLUDED.name,updated_at=now()",[guild.id,guild.name]);
 }
 const errorEmbed=m=>new EmbedBuilder().setColor(0xD97706).setTitle("TERA ON-CHAIN").setDescription(m);
-client.once("ready",()=>console.log(`TERA ON-CHAIN online as ${client.user.tag}`));
+async function ensureAlertSchema(){
+ if(!pool)return;
+ await pool.query("ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS last_seen_cursor TEXT");
+ await pool.query("ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMPTZ");
+ await pool.query("ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS min_alert_usd NUMERIC(30,8) NOT NULL DEFAULT 0");
+ await pool.query("ALTER TABLE guilds ADD COLUMN IF NOT EXISTS alert_threshold_usd NUMERIC(30,8) NOT NULL DEFAULT 0");
+ await pool.query("CREATE TABLE IF NOT EXISTS chain_scan_state(chain TEXT PRIMARY KEY,last_scanned_block BIGINT NOT NULL DEFAULT 0,updated_at TIMESTAMPTZ NOT NULL DEFAULT now())");
+}
+client.once("ready",async()=>{
+ console.log(`TERA ON-CHAIN online as ${client.user.tag}`);
+ if(pool){try{await ensureAlertSchema();startAlertWorker(client,pool);console.log("Wallet alert worker started.");}catch(e){console.error("Alert worker startup failed:",e);}}
+});
 async function setupServer(guild){
  const {ChannelType,PermissionFlagsBits}=require("discord.js");
  // Destructive reset: remove every existing channel (text, voice, category, forum, etc.).
@@ -86,8 +98,8 @@ client.on("interactionCreate",async i=>{
    if(sub==="watch-add"){
     const chain=i.options.getString("chain"),address=i.options.getString("address").trim(),label=i.options.getString("label")||null;
     if(!validAddress(chain,address)) throw new Error("Invalid wallet address for selected chain.");
-    await pool.query("INSERT INTO tracked_wallets(guild_id,chain,address,label,added_by_user_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(guild_id,chain,address) DO UPDATE SET label=EXCLUDED.label,enabled=true",[i.guildId,chain,address,label,i.user.id]);
-    return i.editReply({content:"Wallet added to this server's watchlist. Automatic activity alerts are not enabled yet."});
+    await pool.query("INSERT INTO tracked_wallets(guild_id,chain,address,label,added_by_user_id,min_alert_usd) VALUES($1,$2,$3,$4,$5,COALESCE((SELECT alert_threshold_usd FROM guilds WHERE guild_id=$1),0)) ON CONFLICT(guild_id,chain,address) DO UPDATE SET label=EXCLUDED.label,enabled=true",[i.guildId,chain,address,label,i.user.id]);
+    return i.editReply({content:"👀 Wallet added. Monitoring is active; first poll establishes a baseline. Configure delivery with /alerts channel."});
    }
    if(sub==="watch-remove"){
     const chain=i.options.getString("chain"),address=i.options.getString("address").trim();
@@ -100,9 +112,34 @@ client.on("interactionCreate",async i=>{
     return i.editReply({content:body});
    }
   }
-  if(i.commandName==="whale") return i.editReply({embeds:[errorEmbed("Global whale-transfer indexer is not connected yet. No whale transactions will be fabricated.") ]});
+  if(i.commandName==="whale"){
+   const q=await pool.query("SELECT chain,payload,source_url FROM alert_events WHERE guild_id=$1 ORDER BY observed_at DESC LIMIT 10",[i.guildId]);
+   if(!q.rowCount)return i.editReply({content:"🐋 No monitored wallet transfers recorded yet. Add wallets and configure /alerts channel."});
+   const lines=q.rows.map(r=>{const p=r.payload||{};return "**"+r.chain.toUpperCase()+"** • "+(p.direction||"activity")+" • "+(p.amount||"?")+" "+(p.symbol||"")+" • [Explorer]("+r.source_url+")";});
+   return i.editReply({content:"🐋 **Recent monitored wallet activity**\n"+lines.join("\n")});
+  }
   if(i.commandName==="token") return i.editReply({embeds:[errorEmbed("Token risk scanning is not enabled yet. Reliable scoring requires contract metadata, liquidity/holder signals and source evidence. No score will be fabricated.") ]});
-  if(i.commandName==="alerts") return i.editReply({embeds:[errorEmbed("Alert rules and event polling are not integrated yet. Wallet watchlist storage requires PostgreSQL.") ]});
+  if(i.commandName==="alerts"){
+   await ensureGuild(i.guild);
+   const sub=i.options.getSubcommand();
+   if(sub==="channel"){
+    const ch=i.options.getChannel("destination");
+    await pool.query("UPDATE guilds SET alert_channel_id=$2,updated_at=now() WHERE guild_id=$1",[i.guildId,ch.id]);
+    return i.editReply({content:"🔔 Alert destination set to <#"+ch.id+">."});
+   }
+   if(sub==="threshold"){
+    const usd=i.options.getNumber("usd");
+    await pool.query("UPDATE guilds SET alert_threshold_usd=$2,updated_at=now() WHERE guild_id=$1",[i.guildId,usd]);
+    await pool.query("UPDATE tracked_wallets SET min_alert_usd=$2 WHERE guild_id=$1",[i.guildId,usd]);
+    return i.editReply({content:usd===0?"🐋 USD threshold disabled.": "💵 Minimum alert threshold set to $"+usd.toLocaleString("en-US")+"."});
+   }
+   if(sub==="status"){
+    const q=await pool.query("SELECT alert_channel_id,alert_threshold_usd FROM guilds WHERE guild_id=$1",[i.guildId]);
+    const n=await pool.query("SELECT count(*)::int AS count FROM tracked_wallets WHERE guild_id=$1 AND enabled=true",[i.guildId]);
+    const row=q.rows[0]||{};
+    return i.editReply({content:"🔔 **Alert system**\n📣 Channel: "+(row.alert_channel_id?"<#"+row.alert_channel_id+">":"Not configured — use /alerts channel")+"\n💵 USD threshold: $"+Number(row.alert_threshold_usd||0).toLocaleString("en-US")+"\n👛 Watched wallets: "+n.rows[0].count+"\n🛰️ Polling: enabled\n⚠️ Native transfers only; token transfers are not monitored yet."});
+   }
+  }
  }catch(e){console.error("Interaction error:",e);return i.editReply({embeds:[errorEmbed(e.message||"Unexpected error. Check bot logs.")]});}
 });
 client.on("error",e=>console.error("Discord client error:",e));
