@@ -68,7 +68,7 @@ client.on("interactionCreate",async i=>{
   }
   if(i.commandName==="onchain"){
    const e=new EmbedBuilder().setColor(0x16A34A).setTitle("TERA ON-CHAIN").setDescription("Read-only blockchain intelligence. No private keys, signing, custody or trading.")
-    .addFields({name:"Live RPC",value:"Ethereum • Solana",inline:true},{name:"Wallet analysis",value:"Available",inline:true},{name:"Wallet watchlist",value:pool?"PostgreSQL configured":"Database not configured",inline:true},{name:"Whale feed / Token risk",value:"Indexer integration pending — no fabricated results."})
+    .addFields({name:"Live RPC",value:"BTC • ETH • SOL • BNB • BASE • POL • ARB • OP • AVAX",inline:true},{name:"Wallet analysis",value:"Available",inline:true},{name:"Wallet watchlist",value:pool?"PostgreSQL configured":"Database not configured",inline:true},{name:"Whale feed / Token risk",value:"Indexer integration pending — no fabricated results."})
     .setFooter({text:"MVP • Public blockchain data only"});
    return i.editReply({embeds:[e]});
   }
