@@ -160,6 +160,42 @@ client.on("interactionCreate", async interaction => {
     }
 
     if (command === "order") {
+      const sub = interaction.options.getSubcommand();
+      if (sub === "manage") {
+        if (!staff(interaction)) return interaction.reply({ content: "Staff only. Verify payment independently before confirming.", ephemeral: true });
+        const orderId = interaction.options.getString("order_id").trim().toUpperCase();
+        const action = interaction.options.getString("action");
+        const order = data.orders.find(o => o.id.toUpperCase() === orderId);
+        if (!order) return interaction.reply({ content: "Order ID not found.", ephemeral: true });
+        if (order.status !== "pending_manual_confirmation") {
+          return interaction.reply({ content: `This order is already ${order.status}.`, ephemeral: true });
+        }
+        if (action === "confirm") {
+          const product = data.products.find(p => p.id === order.productId || p.name.toLowerCase() === order.product.toLowerCase());
+          if (!product || product.stock < order.quantity) {
+            return interaction.reply({ content: "Cannot confirm: product missing or stock is now insufficient.", ephemeral: true });
+          }
+          product.stock -= order.quantity;
+          order.status = "confirmed";
+          order.confirmedAt = new Date().toISOString();
+          order.confirmedBy = interaction.user.id;
+        } else {
+          order.status = "rejected";
+          order.rejectedAt = new Date().toISOString();
+          order.rejectedBy = interaction.user.id;
+        }
+        writeData(data);
+        const customer = await client.users.fetch(order.userId).catch(() => null);
+        if (customer) {
+          await customer.send(action === "confirm"
+            ? `Your Tera Store order **${order.id}** has been confirmed. Staff will arrange fulfillment.`
+            : `Your Tera Store order **${order.id}** was rejected. Please open a ticket if you need help.`
+          ).catch(() => {});
+        }
+        const log = interaction.guild.channels.cache.find(c => c.name === "orders-log" && c.isTextBased());
+        if (log) await log.send(`Order **${order.id}** status changed to **${order.status}** by <@${interaction.user.id}>.`);
+        return interaction.reply({ content: `Order **${order.id}** marked **${order.status}**.`, ephemeral: true });
+      }
       const name = interaction.options.getString("product");
       const quantity = interaction.options.getInteger("quantity");
       const product = data.products.find(p => p.name.toLowerCase() === name.toLowerCase() && p.active);
@@ -167,7 +203,7 @@ client.on("interactionCreate", async interaction => {
       if (product.stock < quantity) return interaction.reply({ content: "Insufficient stock. Open a ticket to ask staff.", ephemeral: true });
       const order = {
         id: `TS-${Date.now().toString(36).toUpperCase()}`,
-        userId: interaction.user.id, product: product.name, quantity,
+        userId: interaction.user.id, productId: product.id, product: product.name, quantity,
         total: product.price * quantity, status: "pending_manual_confirmation",
         createdAt: new Date().toISOString()
       };
