@@ -16,6 +16,13 @@ try {
   assert.throws(() => engine.hexDecode("abc"));
   assert.equal(engine.xorRepeat("4142", "01"), "4043");
 
+  const assets = require(path.join(original, "src/research/assets.js"));
+  const png = Buffer.alloc(24); Buffer.from([137,80,78,71,13,10,26,10]).copy(png,0); png.writeUInt32BE(320,16); png.writeUInt32BE(200,20);
+  const assetReport = assets.inspectAsset(png);
+  assert.equal(assetReport.kind, "image");
+  assert.equal(assetReport.metadata.width, 320);
+  assert.equal(assetReport.metadata.height, 200);
+
   const store = require(path.join(original, "src/research/store.js"));
   const c = store.createCase("Test case", "CI verification");
   const c2 = store.addEvidence(c.id, "known plaintext", "Hello", "test");
