@@ -267,7 +267,7 @@ client.on("interactionCreate", async interaction => {
       const menu = new StringSelectMenuBuilder().setCustomId("tera_product_select")
         .setPlaceholder("🛒 اختر منتجاً للشراء")
         .addOptions(products.map(p => ({ label: p.name.slice(0, 100), description: `${p.price.toLocaleString("en-US")} ${CURRENCY} • المخزون ${p.stock}`.slice(0, 100), value: p.id, emoji: p.stock > 0 ? "🟢" : "🔴", default: false })));
-      return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
+      return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)], ephemeral: true });
     }
 
     if (command === "stock") {
