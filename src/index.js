@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes, EmbedBuild
 const { MATRIX, decodeMatrix, sha256, decryptOpenSslAes256Cbc, beaufort } = require("./gsmg/core");
 const research = require("./research/store");
 const engine = require("./research/engine");
+const assets = require("./research/assets");
 
 const { DISCORD_TOKEN, CLIENT_ID, GUILD_ID } = process.env;
 if (!DISCORD_TOKEN || !CLIENT_ID) throw new Error("DISCORD_TOKEN and CLIENT_ID are required.");
@@ -44,7 +45,11 @@ const lab = new SlashCommandBuilder().setName("lab").setDescription("TRACE X res
  .addSubcommand(s => s.setName("analyze-text").setDescription("Fingerprint text and test common encodings")
   .addStringOption(o => o.setName("text").setDescription("Exact input").setRequired(true).setMaxLength(1800)))
  .addSubcommand(s => s.setName("evidence-list").setDescription("List evidence in a case")
-  .addStringOption(o => o.setName("case-id").setDescription("Case ID").setRequired(true)));
+  .addStringOption(o => o.setName("case-id").setDescription("Case ID").setRequired(true)))
+ .addSubcommand(s => s.setName("asset-inspect").setDescription("Inspect image/audio/binary file headers")
+  .addAttachmentOption(o => o.setName("file").setDescription("Image, audio, or binary file").setRequired(true))
+  .addStringOption(o => o.setName("case-id").setDescription("Optional case ID"))
+  .addStringOption(o => o.setName("label").setDescription("Evidence label").setMaxLength(120)));
 
 async function registerCommands() {
  const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
@@ -120,6 +125,19 @@ async function main() {
     const c = research.testHypothesis(interaction.options.getString("case-id", true), interaction.options.getString("hypothesis-id", true), interaction.options.getString("outcome", true), interaction.options.getString("notes") || "");
     const h = c.hypotheses.find(x => x.id === interaction.options.getString("hypothesis-id", true));
     description = "**Test recorded**\nHypothesis: " + h.id + "\nCurrent status: " + h.status;
+   } else if (sub === "asset-inspect") {
+    const file = interaction.options.getAttachment("file", true);
+    if (file.size > 10 * 1024 * 1024) throw new Error("Maximum asset size is 10 MB.");
+    const response = await fetch(file.url);
+    if (!response.ok) throw new Error("Could not download the attachment.");
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const report = assets.inspectAsset(buffer);
+    const caseId = interaction.options.getString("case-id");
+    if (caseId) {
+     const label = interaction.options.getString("label") || file.name || "uploaded asset";
+     research.addEvidence(caseId, label, JSON.stringify({file:file.name,mime:file.contentType, ...report}), file.url);
+    }
+    description = "**Asset fingerprint**\\nFile: " + file.name + "\\nKind: " + report.kind + "\\nBytes: " + report.bytes + "\\nSHA-256: " + report.sha256 + "\\nMetadata: " + JSON.stringify(report.metadata) + "\\nHeader: " + report.headerHex + (caseId ? "\\nSaved to case: " + caseId : "");
    } else if (sub === "analyze-text") {
     const r = engine.analyzeText(interaction.options.getString("text", true));
     description = "**Input fingerprint**\nBytes: " + r.inputBytes + " · Unique chars: " + r.characterStats.uniqueCharacters + "\nSHA-256: " + r.sha256 + "\n\n**Candidate transforms**\n" + r.candidates.map(x => x.error ? x.transform + ": " + x.error : x.transform + " · printable " + x.printableRatio + "\n" + x.preview).join("\n\n");
