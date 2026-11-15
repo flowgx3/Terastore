@@ -27,6 +27,26 @@ function staff(interaction) {
 function slug(value) {
   return value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "customer";
 }
+function findNamedChannel(guild, plainName, type) {
+  return guild.channels.cache.find(c => c.type === type && c.name.includes(plainName));
+}
+const categoryLabels = {
+  "WELCOME": "📌・WELCOME",
+  "STORE": "🛍️・STORE",
+  "CUSTOMER SERVICE": "🎫・CUSTOMER-SERVICE",
+  "STAFF": "🛠️・STAFF"
+};
+const channelLabels = {
+  "welcome": "👋・welcome",
+  "rules": "📜・rules",
+  "announcements": "📢・announcements",
+  "store-catalog": "🛍️・store-catalog",
+  "open-ticket": "🎫・open-ticket",
+  "customer-reviews": "⭐・customer-reviews",
+  "payment-info": "💳・payment-info",
+  "orders-log": "🧾・orders-log",
+  "stock-management": "📦・stock-management"
+};
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -41,7 +61,7 @@ async function openTicket(interaction, reason) {
   if (existing) return interaction.reply({ content: `You already have an open ticket: ${existing}`, ephemeral: true });
 
   const support = guild.roles.cache.find(r => ["Support", "Admin", "Owner"].includes(r.name));
-  const category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === "CUSTOMER SERVICE");
+  const category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.includes("CUSTOMER"));
   const channel = await guild.channels.create({
     name: `ticket-${slug(interaction.user.username)}`,
     type: ChannelType.GuildText,
@@ -75,8 +95,12 @@ client.on("interactionCreate", async interaction => {
       const guild = interaction.guild;
       const categoryNames = ["WELCOME", "STORE", "CUSTOMER SERVICE", "STAFF"];
       for (const name of categoryNames) {
-        if (!guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === name))
-          await guild.channels.create({ name, type: ChannelType.GuildCategory });
+        const existing = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.includes(name.split(" ")[0]));
+        if (existing) {
+          if (existing.name !== categoryLabels[name]) await existing.setName(categoryLabels[name]);
+        } else {
+          await guild.channels.create({ name: categoryLabels[name], type: ChannelType.GuildCategory });
+        }
       }
       await guild.roles.fetch();
       const roles = [
@@ -96,20 +120,24 @@ client.on("interactionCreate", async interaction => {
         ["orders-log", "STAFF"], ["stock-management", "STAFF"]
       ];
       for (const [name, categoryName] of specs) {
-        if (!guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.name === name)) {
-          const parent = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === categoryName);
-          await guild.channels.create({ name, type: ChannelType.GuildText, parent: parent?.id });
+        const existing = guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.name.includes(name));
+        const parent = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.includes(categoryName.split(" ")[0]));
+        if (existing) {
+          if (existing.name !== channelLabels[name]) await existing.setName(channelLabels[name]);
+          if (parent && existing.parentId !== parent.id) await existing.setParent(parent.id);
+        } else {
+          await guild.channels.create({ name: channelLabels[name], type: ChannelType.GuildText, parent: parent?.id });
         }
       }
-      return interaction.editReply("Tera Store server structure created. Assign staff roles and review channel permissions.");
+      return interaction.editReply("✨ Tera Store layout updated! Categories, channels and product areas now have matching emojis.");
     }
 
     if (command === "panel") {
       const embed = new EmbedBuilder().setColor(0x8b5cf6)
-        .setTitle("Tera Store — Customer Support")
-        .setDescription("Press the button to open a private support ticket. Never send passwords or verification codes.");
+        .setTitle("🎧 Tera Store — Customer Support")
+        .setDescription("🎫 Press the button to open a private support ticket.\n🔒 Never send passwords or verification codes.");
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("tera_ticket_open").setLabel("Open a ticket").setStyle(ButtonStyle.Primary)
+        new ButtonBuilder().setCustomId("tera_ticket_open").setLabel("🎫 Open a ticket").setStyle(ButtonStyle.Primary)
       );
       return interaction.reply({ embeds: [embed], components: [row] });
     }
@@ -131,9 +159,9 @@ client.on("interactionCreate", async interaction => {
       }
       const products = data.products.filter(p => p.active);
       if (!products.length) return interaction.reply({ content: "No products are listed yet.", ephemeral: true });
-      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("Tera Store Catalog")
-        .setDescription(products.slice(0, 20).map(p =>
-          `**${p.name}** — ${p.price.toLocaleString("en-US")} ${CURRENCY}\n${p.description}\nStock: ${p.stock}`
+      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("🛍️ Tera Store — Catalog")
+        .setDescription("✨ اختر منتجك من القائمة\n\n" + products.slice(0, 20).map(p =>
+          `📦 **${p.name}** — 💰 ${p.price.toLocaleString("en-US")} ${CURRENCY}\n📝 ${p.description}\n${p.stock > 0 ? "🟢" : "🔴"} المخزون: ${p.stock}`
         ).join("\n\n"));
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
@@ -192,7 +220,7 @@ client.on("interactionCreate", async interaction => {
             : `Your Tera Store order **${order.id}** was rejected. Please open a ticket if you need help.`
           ).catch(() => {});
         }
-        const log = interaction.guild.channels.cache.find(c => c.name === "orders-log" && c.isTextBased());
+        const log = interaction.guild.channels.cache.find(c => c.name.includes("orders-log") && c.isTextBased());
         if (log) await log.send(`Order **${order.id}** status changed to **${order.status}** by <@${interaction.user.id}>.`);
         return interaction.reply({ content: `Order **${order.id}** marked **${order.status}**.`, ephemeral: true });
       }
