@@ -234,25 +234,29 @@ client.on("interactionCreate", async interaction => {
         const name = interaction.options.getString("name").trim();
         const price = interaction.options.getInteger("price");
         const description = interaction.options.getString("description") || "No description.";
+        const imageUrl = interaction.options.getString("image_url");
+        if (imageUrl && !/^https:\/\//i.test(imageUrl)) return interaction.reply({ content: "رابط الصورة يجب أن يبدأ بـ https://", ephemeral: true });
         if (data.products.some(p => p.name.toLowerCase() === name.toLowerCase()))
           return interaction.reply({ content: "A product with that name already exists.", ephemeral: true });
-        data.products.push({ id: Date.now().toString(36), name, price, description, stock: 0, active: true });
+        data.products.push({ id: Date.now().toString(36), name, price, description, imageUrl: imageUrl || null, stock: 0, active: true });
         writeData(data);
         return interaction.reply({ content: `Added **${name}** — ${price.toLocaleString("en-US")} ${CURRENCY}. Stock starts at zero.`, ephemeral: true });
       }
-      const products = data.products.filter(p => p.active).slice(0, 25);
+      const products = data.products.filter(p => p.active).slice(0, 10);
       if (!products.length) return interaction.reply({ content: "لا توجد منتجات معروضة حالياً.", ephemeral: true });
-      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("PRODUCT LIST")
-        .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.")
-        .addFields(products.map(p => ({
-          name: `${p.name.toUpperCase()} | ${p.price.toLocaleString("en-US")} ${CURRENCY}`,
-          value: `**${p.stock > 0 ? `${String(p.stock).padStart(2, "0")} AVAILABLE` : "OUT OF STOCK"}**\n${p.description || "No description."}`,
-          inline: false
-        })));
+      const header = new EmbedBuilder().setColor(0x8b5cf6).setTitle("🛍️ TERA STORE — PRODUCT LIST")
+        .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.");
+      const productEmbeds = products.map(p => {
+        const card = new EmbedBuilder().setColor(p.stock > 0 ? 0x22c55e : 0xef4444)
+          .setTitle(`${p.name.toUpperCase()} | ${p.price.toLocaleString("en-US")} ${CURRENCY}`)
+          .setDescription(`**${p.stock > 0 ? `${String(p.stock).padStart(2, "0")} AVAILABLE` : "OUT OF STOCK"}**\n${p.description || "No description."}`);
+        if (p.imageUrl && /^https:\/\//i.test(p.imageUrl)) card.setThumbnail(p.imageUrl);
+        return card;
+      });
       const menu = new StringSelectMenuBuilder().setCustomId("tera_product_select")
         .setPlaceholder("🛒 اختر منتجاً للشراء")
         .addOptions(products.map(p => ({ label: p.name.slice(0, 100), description: `${p.price.toLocaleString("en-US")} ${CURRENCY} • المخزون ${p.stock}`.slice(0, 100), value: p.id, emoji: p.stock > 0 ? "🟢" : "🔴", default: false })));
-      return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
+      return interaction.reply({ embeds: [header, ...productEmbeds], components: [new ActionRowBuilder().addComponents(menu)] });
     }
 
     if (command === "stock") {
