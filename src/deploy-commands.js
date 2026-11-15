@@ -29,8 +29,12 @@ const commands = [
     .addSubcommand(s => s.setName("scan").setDescription("Scan a token contract or mint")
       .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(...TOKEN_CHAINS))
       .addStringOption(o => o.setName("address").setDescription("Token contract or mint address").setRequired(true).setMaxLength(100))),
-  new SlashCommandBuilder().setName("alerts").setDescription("Configure on-chain alerts")
-    .addSubcommand(s => s.setName("status").setDescription("Show alert system readiness"))
+  new SlashCommandBuilder().setName("alerts").setDescription("Configure on-chain wallet alerts")
+    .addSubcommand(s => s.setName("status").setDescription("Show alert system status"))
+    .addSubcommand(s => s.setName("channel").setDescription("Choose the channel for wallet alerts")
+      .addChannelOption(o => o.setName("destination").setDescription("Alert destination text channel").setRequired(true).addChannelTypes(0)))
+    .addSubcommand(s => s.setName("threshold").setDescription("Set minimum alert value in USD for this server")
+      .addNumberOption(o => o.setName("usd").setDescription("Minimum estimated transfer value in USD (0 disables filter)").setRequired(true).setMinValue(0).setMaxValue(1000000000)))
 ].map(c => c.toJSON());
 
 async function main() {
