@@ -40,9 +40,9 @@ async function sendAlert(client,pool,wallet,event){
  if(threshold>0&&(usd===null||usd<threshold)) return;
  const guild=await pool.query("SELECT alert_channel_id FROM guilds WHERE guild_id=$1",[wallet.guild_id]);
  const channelId=guild.rows[0]?.alert_channel_id;
- if(!channelId) return;
+ if(!channelId) throw new Error("Alert channel is not configured.");
  const channel=await client.channels.fetch(channelId).catch(()=>null);
- if(!channel||!channel.isTextBased()) return;
+ if(!channel||!channel.isTextBased()) throw new Error("Alert destination channel is unavailable.");
  const direction=event.direction==="in"?"📥 Incoming":event.direction==="out"?"📤 Outgoing":"🔄 Activity";
  const amountText=Number(event.amount).toLocaleString("en-US",{maximumFractionDigits:8})+" "+event.symbol;
  const embed={
@@ -88,7 +88,7 @@ async function pollBitcoin(client,pool,wallet){
   const spent=(tx.vin||[]).filter(v=>v.prevout?.scriptpubkey_address===wallet.address).reduce((s,v)=>s+Number(v.prevout.value||0),0);
   const delta=(received-spent)/1e8;
   if(delta===0) continue;
-  await recordAndSend(client,pool,wallet,{id:tx.txid,index:0,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"BTC",url:txUrl("bitcoin",tx.txid),source:"mempool.space"});
+  await recordAndSend(client,pool,wallet,{id:tx.txid,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"BTC",url:txUrl("bitcoin",tx.txid),source:"mempool.space"});
  }
  await pool.query("UPDATE tracked_wallets SET last_seen_cursor=$1,last_checked_at=now() WHERE id=$2",[newest,wallet.id]);
 }
@@ -105,7 +105,7 @@ async function pollSolana(client,pool,wallet){
   const idx=keys.indexOf(wallet.address);if(idx<0)continue;
   const delta=(Number(tx.meta.postBalances[idx])-Number(tx.meta.preBalances[idx]))/1e9;
   if(!delta)continue;
-  await recordAndSend(client,pool,wallet,{id:s.signature,index:0,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"SOL",url:txUrl("solana",s.signature),source:"Solana JSON-RPC"});
+  await recordAndSend(client,pool,wallet,{id:s.signature,amount:Math.abs(delta),direction:delta>0?"in":"out",symbol:"SOL",url:txUrl("solana",s.signature),source:"Solana JSON-RPC"});
  }
  await pool.query("UPDATE tracked_wallets SET last_seen_cursor=$1,last_checked_at=now() WHERE id=$2",[newest,wallet.id]);
 }
