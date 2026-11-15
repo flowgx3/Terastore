@@ -255,7 +255,7 @@ client.on("interactionCreate", async interaction => {
       }
       const products = data.products.filter(p => p.active).slice(0, 25);
       if (!products.length) return interaction.reply({ content: "لا توجد منتجات معروضة حالياً.", ephemeral: true });
-      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("🛍️ TERA STORE — PRODUCT LIST")
+      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("PRODUCT LIST")
         .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.")
         .addFields(products.map(p => ({
           name: `${p.name.toUpperCase()} | ${p.price.toLocaleString("en-US")} ${CURRENCY}`.slice(0, 256),
