@@ -57,7 +57,7 @@ async function recordAndSend(client,pool,wallet,event){
  const key=event.id;
  const inserted=await pool.query(
   "INSERT INTO alert_events(guild_id,chain,transaction_id,event_index,event_type,payload,source_provider,source_url,observed_at,delivery_status) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$8,now(),'pending') ON CONFLICT DO NOTHING RETURNING id",
-  [wallet.guild_id,wallet.chain,key,event.index||0,"wallet_activity",JSON.stringify({...event,amount_usd:usdValue(wallet.chain,event.amount)}),event.source,event.url]
+  [wallet.guild_id,wallet.chain,key,event.index??Number(wallet.id%2147483647),"wallet_activity",JSON.stringify({...event,amount_usd:usdValue(wallet.chain,event.amount)}),event.source,event.url]
  );
  if(!inserted.rowCount) return;
  try{
@@ -110,7 +110,7 @@ async function pollEvmChain(client,pool,chain,wallets){
  if(!state.rowCount){await pool.query("INSERT INTO chain_scan_state(chain,last_scanned_block) VALUES($1,$2) ON CONFLICT(chain) DO NOTHING",[chain,latest]);return;}
  const byAddress=new Map();
  for(const w of wallets){const k=norm(w.address);if(!byAddress.has(k))byAddress.set(k,[]);byAddress.get(k).push(w);}
- const end=Math.min(latest,last+3);
+ const end=Math.min(latest,last+10);
  for(let n=last+1;n<=end;n++){
   const block=await rpc(chain,"eth_getBlockByNumber",["0x"+n.toString(16),true]);
   if(!block)continue;
@@ -129,7 +129,7 @@ async function pollEvmChain(client,pool,chain,wallets){
 async function pollOnce(client,pool){
  if(!pool)return;
  await getPrices();
- const q=await pool.query("SELECT * FROM tracked_wallets WHERE enabled=true ORDER BY chain,id");
+ const q=await pool.query("SELECT w.* FROM tracked_wallets w JOIN guilds g ON g.guild_id=w.guild_id WHERE w.enabled=true AND g.alert_channel_id IS NOT NULL ORDER BY w.chain,w.id");
  const wallets=q.rows;
  for(const w of wallets){
   try{
