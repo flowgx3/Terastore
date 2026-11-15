@@ -23,5 +23,7 @@ jobs:
         with:
           node-version: 20
       - run: node --check src/gsmg/core.js
+      - run: node --check src/research/store.js
+      - run: node --check src/research/engine.js
       - run: node --check src/index.js
       - run: node src/gsmg/verify.js
