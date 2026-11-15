@@ -1,0 +1,25 @@
+name: GSMG solver verification
+on:
+  push:
+    paths:
+      - "src/gsmg/**"
+      - "src/gsmg-bot.js"
+      - "package.json"
+      - ".github/workflows/gsmg-verify.yml"
+  pull_request:
+    paths:
+      - "src/gsmg/**"
+      - "src/gsmg-bot.js"
+      - "package.json"
+      - ".github/workflows/gsmg-verify.yml"
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --check src/gsmg/core.js
+      - run: node --check src/gsmg-bot.js
+      - run: node src/gsmg/verify.js
