@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "src/gsmg/**"
+      - "src/research/**"
       - "src/index.js"
       - "index.js"
       - "package.json"
@@ -27,3 +28,4 @@ jobs:
       - run: node --check src/research/engine.js
       - run: node --check src/index.js
       - run: node src/gsmg/verify.js
+      - run: node src/research/verify.js
