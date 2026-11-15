@@ -141,3 +141,8 @@ CREATE TABLE IF NOT EXISTS chain_scan_state (
   last_scanned_block BIGINT NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Ensure idempotency for wallet activity rows without a specific alert rule.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_events_wallet_dedupe
+  ON alert_events(guild_id, chain, transaction_id, event_index)
+  WHERE rule_id IS NULL;
