@@ -23,9 +23,14 @@ const commands = [
       .addStringOption(o => o.setName("product").setDescription("Product name").setRequired(true))
       .addIntegerOption(o => o.setName("quantity").setDescription("Quantity").setRequired(true).setMinValue(1)))
     .addSubcommand(s => s.setName("list").setDescription("List stock levels")),
-  new SlashCommandBuilder().setName("order").setDescription("Request a product")
-    .addStringOption(o => o.setName("product").setDescription("Exact product name").setRequired(true))
-    .addIntegerOption(o => o.setName("quantity").setDescription("Quantity").setRequired(true).setMinValue(1))
+  new SlashCommandBuilder().setName("order").setDescription("Request or manage an order")
+    .addSubcommand(s => s.setName("create").setDescription("Request a product")
+      .addStringOption(o => o.setName("product").setDescription("Exact product name").setRequired(true))
+      .addIntegerOption(o => o.setName("quantity").setDescription("Quantity").setRequired(true).setMinValue(1)))
+    .addSubcommand(s => s.setName("manage").setDescription("Confirm or reject a pending order (staff only)")
+      .addStringOption(o => o.setName("order_id").setDescription("Order ID, e.g. TS-ABC123").setRequired(true))
+      .addStringOption(o => o.setName("action").setDescription("Decision").setRequired(true)
+        .addChoices({ name: "Confirm payment and fulfill", value: "confirm" }, { name: "Reject order", value: "reject" })))
 ].map(c => c.toJSON());
 
 async function main() {
