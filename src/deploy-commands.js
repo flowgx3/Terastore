@@ -24,7 +24,7 @@ const commands = [
       .addStringOption(o => o.setName("address").setDescription("Wallet address").setRequired(true).setMaxLength(100)))
     .addSubcommand(s => s.setName("watch-list").setDescription("List wallets watched by this server")),
   new SlashCommandBuilder().setName("whale").setDescription("Large on-chain transfer intelligence")
-    .addSubcommand(s => s.setName("latest").setDescription("Show latest indexed whale transfers")),
+    .addSubcommand(s => s.setName("latest").setDescription("Show latest monitored wallet transfers")),
   new SlashCommandBuilder().setName("token").setDescription("Token intelligence and risk screening")
     .addSubcommand(s => s.setName("scan").setDescription("Scan a token contract or mint")
       .addStringOption(o => o.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(...TOKEN_CHAINS))
