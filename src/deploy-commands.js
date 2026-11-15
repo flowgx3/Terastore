@@ -1,7 +1,7 @@
 require("dotenv").config();
 const { REST, Routes, SlashCommandBuilder } = require("discord.js");
 
-const commands = [
+const WALLET_CHAINS = [\n  {name:"Bitcoin",value:"bitcoin"},{name:"Ethereum",value:"ethereum"},{name:"Solana",value:"solana"},\n  {name:"BNB Smart Chain",value:"bsc"},{name:"Base",value:"base"},{name:"Polygon",value:"polygon"},\n  {name:"Arbitrum One",value:"arbitrum"},{name:"Optimism",value:"optimism"},{name:"Avalanche C-Chain",value:"avalanche"}\n];\nconst TOKEN_CHAINS = WALLET_CHAINS.filter(c=>c.value!=="bitcoin");\n\nconst commands = [
   new SlashCommandBuilder().setName("setup").setDescription("⚠️ Delete all server channels and rebuild TERA ON-CHAIN").setDefaultMemberPermissions(8).addBooleanOption(o => o.setName("confirm").setDescription("Confirm deleting ALL channels and their contents").setRequired(true)),
   new SlashCommandBuilder().setName("onchain").setDescription("TERA ON-CHAIN status and supported networks"),
   new SlashCommandBuilder().setName("wallet").setDescription("Analyze and monitor blockchain wallets")
