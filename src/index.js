@@ -12,11 +12,16 @@ const errorEmbed=m=>new EmbedBuilder().setColor(0xD97706).setTitle("TERA ON-CHAI
 client.once("ready",()=>console.log(`TERA ON-CHAIN online as ${client.user.tag}`));
 async function setupServer(guild){
  const {ChannelType,PermissionFlagsBits}=require("discord.js");
+ // Destructive reset: remove every existing channel (text, voice, category, forum, etc.).
+ const existing=await guild.channels.fetch();
+ const ordered=[...existing.values()].sort((a,b)=>(a.type===ChannelType.GuildCategory?1:0)-(b.type===ChannelType.GuildCategory?1:0));
+ for(const channel of ordered){ if(channel.deletable) await channel.delete("TERA ON-CHAIN full server setup reset"); }
+
  const roleSpecs=[
-  {name:"Tera Owner",color:0xF5B700,permissions:[PermissionFlagsBits.Administrator]},
-  {name:"Tera Admin",color:0xD99A00,permissions:[PermissionFlagsBits.ManageMessages,PermissionFlagsBits.ModerateMembers]},
-  {name:"Analyst",color:0xE8C547,permissions:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.EmbedLinks]},
-  {name:"Verified",color:0xB58B28,permissions:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}
+  {name:"👑 Tera Owner",color:0xF5B700,permissions:[PermissionFlagsBits.Administrator]},
+  {name:"🛡️ Tera Admin",color:0xD99A00,permissions:[PermissionFlagsBits.ManageMessages,PermissionFlagsBits.ModerateMembers]},
+  {name:"🔎 Analyst",color:0xE8C547,permissions:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.EmbedLinks]},
+  {name:"✅ Verified",color:0xB58B28,permissions:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}
  ];
  const roles={};
  for(const spec of roleSpecs){
@@ -31,11 +36,11 @@ async function setupServer(guild){
   {id:roles["Tera Admin"].id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}
  ];
  const categories=[
-  {name:"START HERE",channels:[["welcome","Welcome to TERA ON-CHAIN."],["rules","Server rules and safety guidelines."],["announcements","Official TERA updates."]]},
-  {name:"MARKET INTELLIGENCE",channels:[["whale-alerts","Large on-chain transfer alerts."],["smart-money","Wallet activity and smart-money research."],["token-scanner","Token research and risk reports."],["market-news","Market intelligence and updates."]]},
-  {name:"WALLET LAB",channels:[["wallet-analysis","Discuss public wallet analysis."],["watchlists","Community wallet watchlists and tracking."],["on-chain-data","On-chain research and evidence."]]},
-  {name:"COMMUNITY",channels:[["general","General community chat."],["signals-discussion","Discuss signals with evidence and sources."],["support","Get help with TERA ON-CHAIN."]]},
-  {name:"STAFF ONLY",channels:[["staff-chat","Private staff coordination."],["mod-logs","Private moderation and setup logs."]],private:true}
+  {name:"📌 START HERE",channels:[["👋・welcome","Welcome to TERA ON-CHAIN."],["📜・rules","Server rules and safety guidelines."],["📢・announcements","Official TERA updates."]]},
+  {name:"📊 MARKET INTELLIGENCE",channels:[["🐋・whale-alerts","Large on-chain transfer alerts."],["🧠・smart-money","Wallet activity and smart-money research."],["🔍・token-scanner","Token research and risk reports."],["📈・market-news","Market intelligence and updates."]]},
+  {name:"👛 WALLET LAB",channels:[["🔬・wallet-analysis","Discuss public wallet analysis."],["👀・watchlists","Community wallet watchlists and tracking."],["⛓️・on-chain-data","On-chain research and evidence."]]},
+  {name:"💬 COMMUNITY",channels:[["💬・general","General community chat."],["🧩・signals-discussion","Discuss signals with evidence and sources."],["🆘・support","Get help with TERA ON-CHAIN."]]},
+  {name:"🔒 STAFF ONLY",channels:[["🔐・staff-chat","Private staff coordination."],["🛡️・mod-logs","Private moderation and setup logs."]],private:true}
  ];
  const created=[];
  for(const group of categories){
@@ -55,9 +60,11 @@ client.on("interactionCreate",async i=>{
  try{
   if(i.commandName==="setup"){
    if(!i.memberPermissions?.has("Administrator")) throw new Error("Only server administrators can run /setup.");
-   if(!i.guild.members.me.permissions.has(["ManageChannels","ManageRoles"])) throw new Error("Give the bot Manage Channels and Manage Roles permissions, then run /setup again.");
+   if(i.options.getBoolean("confirm")!==true) throw new Error("Setup cancelled. Set confirm to true only when you intend to delete every channel.");
+   const me=await i.guild.members.fetchMe();
+   if(!me.permissions.has(["ManageChannels","ManageRoles"])) throw new Error("Give the bot Manage Channels and Manage Roles permissions, then run /setup again.");
    const result=await setupServer(i.guild);
-   return i.editReply({content:`TERA ON-CHAIN server structure is ready.\\nCreated/verified roles: ${result.roles.join(", ")}\\nCreated/verified channels: ${result.channels.length}\\nNo existing channels or messages were deleted.`});
+   return i.editReply({content:`🟡 **TERA ON-CHAIN server rebuilt!**\\n🗑️ All previous channels and their messages were deleted.\\n👑 Roles: ${result.roles.join(", ")}\\n📁 New channels: ${result.channels.length}\\n✨ Categories and channels include emojis.`});
   }
   if(i.commandName==="onchain"){
    const e=new EmbedBuilder().setColor(0x16A34A).setTitle("TERA ON-CHAIN").setDescription("Read-only blockchain intelligence. No private keys, signing, custody or trading.")
