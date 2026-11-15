@@ -2,7 +2,7 @@ require("dotenv").config();
 const { REST, Routes, SlashCommandBuilder } = require("discord.js");
 
 const commands = [
-  new SlashCommandBuilder().setName("setup").setDescription("Create the TERA ON-CHAIN server structure").setDefaultMemberPermissions(8),
+  new SlashCommandBuilder().setName("setup").setDescription("⚠️ Delete all server channels and rebuild TERA ON-CHAIN").setDefaultMemberPermissions(8).addBooleanOption(o => o.setName("confirm").setDescription("Confirm deleting ALL channels and their contents").setRequired(true)),
   new SlashCommandBuilder().setName("onchain").setDescription("TERA ON-CHAIN status and supported networks"),
   new SlashCommandBuilder().setName("wallet").setDescription("Analyze and monitor blockchain wallets")
     .addSubcommand(s => s.setName("analyze").setDescription("Read live public wallet balances")
