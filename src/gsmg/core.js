@@ -78,4 +78,4 @@ function ebcdic1141BytesToText(bytes) {
   return [...bytes].map(b => cp1141[b] ?? "\\u{" + b.toString(16) + "}").join("");
 }
 
-module.exports = { MATRIX, spiralCounterClockwise, decodeMatrix, sha256, decryptOpenSslAes256Cbc, beaufort, ebcdic1141BytesToText };
+module.exports = { MATRIX, spiralCounterClockwise, decodeMatrix, sha256, decryptOpenSslAes256Cbc, beaufort };
