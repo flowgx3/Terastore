@@ -246,7 +246,7 @@ client.on("interactionCreate", async interaction => {
         .setDescription("اختر المنتج من القائمة بالأسفل لعرض طلبك.")
         .addFields(products.map(p => ({
           name: `${p.name.toUpperCase()} | ${p.price.toLocaleString("en-US")} ${CURRENCY}`,
-          value: `**${String(Math.max(0, p.stock)).padStart(2, "0")} AVAILABLE**\n${p.description || "No description."}`,
+          value: `**${p.stock > 0 ? `${String(p.stock).padStart(2, "0")} AVAILABLE` : "OUT OF STOCK"}**\n${p.description || "No description."}`,
           inline: false
         })));
       const menu = new StringSelectMenuBuilder().setCustomId("tera_product_select")
