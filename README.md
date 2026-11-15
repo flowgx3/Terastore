@@ -1,24 +1,32 @@
-# Tera Store — Discord Bot
+# TERA ON-CHAIN
 
-Discord.js v14 starter for a digital-goods store.
+Read-only, multi-server Discord intelligence bot for public blockchain data.
 
-## Features
-- `/setup`: creates the initial server categories, channels, and roles.
-- `/panel`: posts a support-ticket button.
-- `/ticket`: opens a private support channel.
-- `/product add|list`: product catalog.
-- `/stock set|add|remove|list`: inventory management.
-- `/order`: records a pending order request and logs it for staff.
+## Current MVP
+- `/onchain` — runtime and feature readiness.
+- `/wallet analyze` — live native balance snapshot on Ethereum and Solana through public JSON-RPC.
+- `/wallet watch-add`, `watch-remove`, `watch-list` — per-server watchlist backed by PostgreSQL.
+- `/whale latest`, `/token scan`, `/alerts status` — honest readiness responses until indexed sources and alert workers are integrated.
+
+No private keys, seed phrases, custody, signing or automated trading. A large transfer is not automatically a buy or sell. No token is declared safe from incomplete evidence.
 
 ## Requirements
-- Node.js 20+
-- Discord application and bot
-- Bot invited with `bot` and `applications.commands` scopes
+Node.js 20+, Discord bot with `bot` and `applications.commands` scopes. PostgreSQL is optional for wallet analysis and required for watchlists.
+
+## Environment
+Set `DISCORD_TOKEN`, `CLIENT_ID`, optional `GUILD_ID`, and optional `DATABASE_URL`. RPC endpoints can be overridden with `ETHEREUM_RPC_URL` and `SOLANA_RPC_URL`.
+
+Apply `db/schema.sql` to PostgreSQL before using wallet watchlist commands.
 
 ## Run
-1. `npm install`
-2. Copy `.env.example` to `.env` and fill in the values.
-3. `npm run deploy`
-4. `npm start`
+```bash
+npm install
+npm run deploy
+npm start
+```
 
-Never commit or share your bot token. The first version stores data in a local JSON file; use persistent database storage before production. Orders are pending requests and payment confirmation is manual. Never ask customers for passwords or one-time codes. Only sell goods you are authorized to resell.
+## Data integrity
+RPC balances are live snapshots, not complete histories. Provider errors and limits are surfaced; no synthetic market data is returned. Guild database queries are scoped by guild_id. PostgreSQL timestamps use UTC.
+
+## Roadmap
+Provider health and quotas; indexed transfers; evidence-based token risk indicators; alert polling/deduplication/delivery; multi-chain expansion; subscriptions after product validation.
