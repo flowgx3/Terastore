@@ -3,7 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {
   Client, GatewayIntentBits, ChannelType, PermissionFlagsBits,
-  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
+  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle
 } = require("discord.js");
 
 const { DISCORD_TOKEN } = process.env;
@@ -85,25 +86,86 @@ client.on("interactionCreate", async interaction => {
         await openTicket(interaction, "Support panel request");
         return;
       }
-      if (interaction.customId.startsWith("tera_buy_")) {
-        const productId = interaction.customId.slice("tera_buy_".length);
+      if (interaction.customId.startsWith("tera_order_confirm:") || interaction.customId.startsWith("tera_order_reject:")) {
+        if (!staff(interaction)) return interaction.reply({ content: "هذا الإجراء مخصص للإدارة فقط.", ephemeral: true });
+        const [action, orderId] = interaction.customId.replace("tera_order_", "").split(":");
         const data = readData();
-        const product = data.products.find(p => p.id === productId && p.active);
-        if (!product) return interaction.reply({ content: "هذا المنتج لم يعد متاحاً.", ephemeral: true });
-        if (product.stock < 1) return interaction.reply({ content: "نفد المخزون حالياً. افتح تذكرة للاستفسار.", ephemeral: true });
-        const order = {
-          id: `TS-${Date.now().toString(36).toUpperCase()}`,
-          userId: interaction.user.id, productId: product.id, product: product.name,
-          quantity: 1, total: product.price, status: "pending_manual_confirmation",
-          createdAt: new Date().toISOString()
-        };
-        data.orders.push(order);
+        const order = data.orders.find(o => o.id === orderId);
+        if (!order || order.status !== "awaiting_payment_review") return interaction.reply({ content: "الطلب غير موجود أو تمت معالجته مسبقاً.", ephemeral: true });
+        const product = data.products.find(p => p.id === order.productId);
+        if (action === "confirm") {
+          if (!product || product.stock < order.quantity) return interaction.reply({ content: "المخزون غير كافٍ لتأكيد هذا الطلب.", ephemeral: true });
+          product.stock -= order.quantity;
+          order.status = "confirmed";
+          order.confirmedAt = new Date().toISOString();
+          order.confirmedBy = interaction.user.id;
+        } else {
+          order.status = "rejected";
+          order.rejectedAt = new Date().toISOString();
+          order.rejectedBy = interaction.user.id;
+        }
         writeData(data);
-        const log = interaction.guild.channels.cache.find(c => c.name.includes("orders-log") && c.isTextBased());
-        if (log) await log.send(`🛒 طلب جديد **${order.id}** من <@${interaction.user.id}>\n📦 **${product.name}** × 1\n💰 الإجمالي: **${order.total.toLocaleString("en-US")} ${CURRENCY}**\n🕒 بانتظار تأكيد الدفع من الإدارة.`);
-        return interaction.reply({ content: `✅ تم تسجيل طلبك **${order.id}** لمنتج **${product.name}**. الإجمالي **${order.total.toLocaleString("en-US")} ${CURRENCY}**. أرسل إثبات الدفع عبر تذكرة الدعم؛ الطلب لا يُعتمد حتى تتحقق الإدارة من الدفع.`, ephemeral: true });
+        const disabledRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId("tera_done_confirm").setLabel(action === "confirm" ? "تم التأكيد" : "رُفض الطلب").setStyle(action === "confirm" ? ButtonStyle.Success : ButtonStyle.Danger).setDisabled(true)
+        );
+        await interaction.message.edit({ components: [disabledRow] }).catch(() => {});
+        const customer = await client.users.fetch(order.userId).catch(() => null);
+        if (customer) await customer.send(action === "confirm"
+          ? `✅ تم تأكيد الدفع للطلب ${order.id}. سيتواصل معك فريق Tera لتسليم المنتج.`
+          : `❌ تم رفض الطلب ${order.id}. يرجى مراجعة تذكرة الدعم.`).catch(() => {});
+        return interaction.reply({ content: action === "confirm" ? `تم تأكيد الطلب ${order.id} وخصم الكمية من المخزون.` : `تم رفض الطلب ${order.id}.`, ephemeral: true });
       }
       return;
+    }
+    if (interaction.isStringSelectMenu() && interaction.customId === "tera_product_select") {
+      const productId = interaction.values[0];
+      const data = readData();
+      const product = data.products.find(p => p.id === productId && p.active);
+      if (!product || product.stock < 1) return interaction.reply({ content: "المنتج غير متوفر حالياً.", ephemeral: true });
+      const modal = new ModalBuilder().setCustomId(`tera_checkout:${product.id}`).setTitle("إتمام طلب Tera Store");
+      const quantity = new TextInputBuilder().setCustomId("quantity").setLabel("الكمية المطلوبة").setStyle(TextInputStyle.Short).setPlaceholder("1").setValue("1").setRequired(true).setMaxLength(3);
+      modal.addComponents(new ActionRowBuilder().addComponents(quantity));
+      return interaction.showModal(modal);
+    }
+    if (interaction.isModalSubmit() && interaction.customId.startsWith("tera_checkout:")) {
+      const productId = interaction.customId.split(":")[1];
+      const quantity = Number.parseInt(interaction.fields.getTextInputValue("quantity"), 10);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) return interaction.reply({ content: "أدخل كمية صحيحة بين 1 و99.", ephemeral: true });
+      const data = readData();
+      const product = data.products.find(p => p.id === productId && p.active);
+      if (!product || product.stock < quantity) return interaction.reply({ content: "الكمية المطلوبة غير متوفرة حالياً.", ephemeral: true });
+      const pending = data.orders.filter(o => o.productId === productId && ["awaiting_payment_review", "pending_manual_confirmation"].includes(o.status)).reduce((sum, o) => sum + o.quantity, 0);
+      if (product.stock - pending < quantity) return interaction.reply({ content: "هناك طلبات أخرى تنتظر الدفع؛ الكمية المتاحة حالياً أقل من طلبك. تواصل مع الدعم.", ephemeral: true });
+      const order = {
+        id: `TS-${Date.now().toString(36).toUpperCase()}`, userId: interaction.user.id,
+        productId, product: product.name, quantity, total: product.price * quantity,
+        status: "awaiting_payment_review", createdAt: new Date().toISOString()
+      };
+      data.orders.push(order);
+      writeData(data);
+      const category = interaction.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.includes("CUSTOMER"));
+      const supportRoles = interaction.guild.roles.cache.filter(r => ["Support", "Admin", "Owner"].includes(r.name));
+      const channel = await interaction.guild.channels.create({
+        name: `order-${order.id.toLowerCase().replace(/[^a-z0-9-]/g, "")}`,
+        type: ChannelType.GuildText, parent: category?.id,
+        topic: `tera-order:${order.id} | tera-owner:${interaction.user.id}`,
+        permissionOverwrites: [
+          { id: interaction.guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+          { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles] },
+          { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory] },
+          ...supportRoles.map(role => ({ id: role.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }))
+        ]
+      });
+      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("🧾 TERA STORE — ملخص الطلب")
+        .setDescription(`مرحباً <@${interaction.user.id}>، تم إنشاء طلبك بنجاح.\n\n**رقم الطلب:** ${order.id}\n**المنتج:** ${product.name}\n**الكمية:** ${quantity}\n**سعر الوحدة:** ${product.price.toLocaleString("en-US")} ${CURRENCY}\n**الإجمالي:** ${order.total.toLocaleString("en-US")} ${CURRENCY}\n**الحالة:** ⏳ بانتظار إثبات الدفع ومراجعة الإدارة\n\nأرسل إثبات الدفع هنا. لا ترسل كلمات المرور أو رموز التحقق.`);
+      const actions = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`tera_order_confirm:${order.id}`).setLabel("تأكيد الدفع").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`tera_order_reject:${order.id}`).setLabel("رفض الطلب").setStyle(ButtonStyle.Danger)
+      );
+      await channel.send({ content: `<@${interaction.user.id}> ${supportRoles.map(r => `<@&${r.id}>`).join(" ")}`, embeds: [embed], components: [actions] });
+      const log = interaction.guild.channels.cache.find(c => c.name.includes("orders-log") && c.isTextBased());
+      if (log) await log.send(`🛒 طلب جديد **${order.id}** من <@${interaction.user.id}> — ${product.name} × ${quantity} — **${order.total.toLocaleString("en-US")} ${CURRENCY}**`);
+      return interaction.reply({ content: `✅ تم إنشاء طلبك **${order.id}**. أكمل الدفع وأرسل الإثبات في تذكرتك الخاصة: ${channel}`, ephemeral: true });
     }
     if (!interaction.isChatInputCommand()) return;
 
@@ -178,22 +240,16 @@ client.on("interactionCreate", async interaction => {
         writeData(data);
         return interaction.reply({ content: `Added **${name}** — ${price.toLocaleString("en-US")} ${CURRENCY}. Stock starts at zero.`, ephemeral: true });
       }
-      const products = data.products.filter(p => p.active).slice(0, 5);
+      const products = data.products.filter(p => p.active).slice(0, 25);
       if (!products.length) return interaction.reply({ content: "لا توجد منتجات معروضة حالياً.", ephemeral: true });
-      const header = new EmbedBuilder().setColor(0x8b5cf6).setTitle("👑 TERA STORE  |  المتجر الرسمي")
-        .setDescription("🛍️ اختر المنتج الذي تريده واضغط **شراء الآن**.\n🔒 لا ترسل كلمة المرور أو رموز التحقق لأي شخص.\n━━━━━━━━━━━━━━━━━━━━");
-      const cards = products.map(p => new EmbedBuilder().setColor(0x8b5cf6)
-        .setTitle(`📦 ${p.name}`)
-        .setDescription(`${p.description}\n\n💰 **السعر**\n${p.price.toLocaleString("en-US")} ${CURRENCY}\n\n${p.stock > 0 ? "🟢 متوفر" : "🔴 غير متوفر"}  •  الكمية: **${p.stock}**`)
-        .setFooter({ text: "TERA STORE • Digital Products & Subscriptions" }));
-      const rows = products.map(p => new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`tera_buy_${p.id}`)
-          .setLabel(p.stock > 0 ? "🛒 شراء الآن" : "غير متوفر")
-          .setStyle(p.stock > 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-          .setDisabled(p.stock < 1)
-      ));
-      return interaction.reply({ content: "✨ **TERA STORE — DIGITAL MARKETPLACE**", embeds: [header, ...cards], components: rows });
+      const embed = new EmbedBuilder().setColor(0x8b5cf6).setTitle("👑 TERA STORE")
+        .setDescription("🛍️ **مرحباً بك في متجر Tera**\nاختر المنتج من القائمة بالأسفل لعرض طلبك.\n\n━━━━━━━━━━━━━━━━━━━━\n" +
+          products.map((p, i) => `**${i + 1}. ${p.name}**\n💰 ${p.price.toLocaleString("en-US")} ${CURRENCY}  •  ${p.stock > 0 ? "🟢 متوفر" : "🔴 نفد المخزون"}\n📝 ${p.description}`).join("\n\n") +
+          "\n\n━━━━━━━━━━━━━━━━━━━━\n🔐 الدفع والتسليم يتمان بعد مراجعة الإدارة.");
+      const menu = new StringSelectMenuBuilder().setCustomId("tera_product_select")
+        .setPlaceholder("🛒 اختر منتجاً للشراء")
+        .addOptions(products.map(p => ({ label: p.name.slice(0, 100), description: `${p.price.toLocaleString("en-US")} ${CURRENCY} • المخزون ${p.stock}`.slice(0, 100), value: p.id, emoji: p.stock > 0 ? "🟢" : "🔴", default: false })));
+      return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
     }
 
     if (command === "stock") {
