@@ -10,10 +10,55 @@ async function ensureGuild(guild){
 }
 const errorEmbed=m=>new EmbedBuilder().setColor(0xD97706).setTitle("TERA ON-CHAIN").setDescription(m);
 client.once("ready",()=>console.log(`TERA ON-CHAIN online as ${client.user.tag}`));
+async function setupServer(guild){
+ const {ChannelType,PermissionFlagsBits}=require("discord.js");
+ const roleSpecs=[
+  {name:"Tera Owner",color:0xF5B700,permissions:[PermissionFlagsBits.Administrator]},
+  {name:"Tera Admin",color:0xD99A00,permissions:[PermissionFlagsBits.ManageMessages,PermissionFlagsBits.ModerateMembers]},
+  {name:"Analyst",color:0xE8C547,permissions:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.EmbedLinks]},
+  {name:"Verified",color:0xB58B28,permissions:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}
+ ];
+ const roles={};
+ for(const spec of roleSpecs){
+  let role=guild.roles.cache.find(r=>r.name===spec.name);
+  if(!role) role=await guild.roles.create({name:spec.name,color:spec.color,permissions:spec.permissions,reason:"TERA ON-CHAIN server setup"});
+  roles[spec.name]=role;
+ }
+ const everyone=guild.roles.everyone;
+ const staffOverwrites=[
+  {id:everyone.id,deny:[PermissionFlagsBits.ViewChannel]},
+  {id:roles["Tera Owner"].id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]},
+  {id:roles["Tera Admin"].id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}
+ ];
+ const categories=[
+  {name:"START HERE",channels:[["welcome","Welcome to TERA ON-CHAIN."],["rules","Server rules and safety guidelines."],["announcements","Official TERA updates."]]},
+  {name:"MARKET INTELLIGENCE",channels:[["whale-alerts","Large on-chain transfer alerts."],["smart-money","Wallet activity and smart-money research."],["token-scanner","Token research and risk reports."],["market-news","Market intelligence and updates."]]},
+  {name:"WALLET LAB",channels:[["wallet-analysis","Discuss public wallet analysis."],["watchlists","Community wallet watchlists and tracking."],["on-chain-data","On-chain research and evidence."]]},
+  {name:"COMMUNITY",channels:[["general","General community chat."],["signals-discussion","Discuss signals with evidence and sources."],["support","Get help with TERA ON-CHAIN."]]},
+  {name:"STAFF ONLY",channels:[["staff-chat","Private staff coordination."],["mod-logs","Private moderation and setup logs."]],private:true}
+ ];
+ const created=[];
+ for(const group of categories){
+  let category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory&&c.name===group.name);
+  if(!category) category=await guild.channels.create({name:group.name,type:ChannelType.GuildCategory,permissionOverwrites:group.private?staffOverwrites:[] ,reason:"TERA ON-CHAIN server setup"});
+  for(const [name,topic] of group.channels){
+   let channel=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&c.name===name&&c.parentId===category.id);
+   if(!channel) channel=await guild.channels.create({name,type:ChannelType.GuildText,parent:category.id,topic,permissionOverwrites:group.private?staffOverwrites:[],reason:"TERA ON-CHAIN server setup"});
+   created.push("#"+name);
+  }
+ }
+ return {roles:Object.keys(roles),channels:created};
+}
 client.on("interactionCreate",async i=>{
  if(!i.isChatInputCommand()) return;
  await i.deferReply({ephemeral:i.commandName==="wallet"&&i.options.getSubcommand()!=="analyze"});
  try{
+  if(i.commandName==="setup"){
+   if(!i.memberPermissions?.has("Administrator")) throw new Error("Only server administrators can run /setup.");
+   if(!i.guild.members.me.permissions.has(["ManageChannels","ManageRoles"])) throw new Error("Give the bot Manage Channels and Manage Roles permissions, then run /setup again.");
+   const result=await setupServer(i.guild);
+   return i.editReply({content:`TERA ON-CHAIN server structure is ready.\\nCreated/verified roles: ${result.roles.join(", ")}\\nCreated/verified channels: ${result.channels.length}\\nNo existing channels or messages were deleted.`});
+  }
   if(i.commandName==="onchain"){
    const e=new EmbedBuilder().setColor(0x16A34A).setTitle("TERA ON-CHAIN").setDescription("Read-only blockchain intelligence. No private keys, signing, custody or trading.")
     .addFields({name:"Live RPC",value:"Ethereum • Solana",inline:true},{name:"Wallet analysis",value:"Available",inline:true},{name:"Wallet watchlist",value:pool?"PostgreSQL configured":"Database not configured",inline:true},{name:"Whale feed / Token risk",value:"Indexer integration pending — no fabricated results."})
