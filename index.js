@@ -43,7 +43,7 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
   new SlashCommandBuilder().setName("slowmode").setDescription("Set channel slowmode")
     .addIntegerOption(o=>o.setName("seconds").setDescription("0 to 21600 seconds").setMinValue(0).setMaxValue(21600).setRequired(true))
-    .addChannelOption(o=>o.setName("channel").setDescription("Channel (defaults to current)").addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement)),
+    .addChannelOption(o=>o.setName("channel").setDescription("Channel (defaults to current)").addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))\n    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
   new SlashCommandBuilder().setName("warn").setDescription("Warn a member")
     .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true))
     .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500).setRequired(true))
