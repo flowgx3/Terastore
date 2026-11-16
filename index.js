@@ -43,7 +43,8 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
   new SlashCommandBuilder().setName("slowmode").setDescription("Set channel slowmode")
     .addIntegerOption(o=>o.setName("seconds").setDescription("0 to 21600 seconds").setMinValue(0).setMaxValue(21600).setRequired(true))
-    .addChannelOption(o=>o.setName("channel").setDescription("Channel (defaults to current)").addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))\n    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+    .addChannelOption(o=>o.setName("channel").setDescription("Channel (defaults to current)").addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
   new SlashCommandBuilder().setName("warn").setDescription("Warn a member")
     .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true))
     .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500).setRequired(true))
@@ -59,19 +60,24 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
   new SlashCommandBuilder().setName("ban").setDescription("Ban a member")
     .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true))
-    .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)),
+    .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
   new SlashCommandBuilder().setName("unban").setDescription("Unban by user ID")
     .addStringOption(o=>o.setName("user_id").setDescription("Discord user ID").setRequired(true))
-    .addStringOption(o=>o.setName("reason").setDescription("Reason")),
+    .addStringOption(o=>o.setName("reason").setDescription("Reason")
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
   new SlashCommandBuilder().setName("kick").setDescription("Kick a member")
     .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true))
-    .addStringOption(o=>o.setName("reason").setDescription("Reason")),
+    .addStringOption(o=>o.setName("reason").setDescription("Reason")
+    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
   new SlashCommandBuilder().setName("timeout").setDescription("Timeout a member")
     .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true))
     .addIntegerOption(o=>o.setName("minutes").setDescription("1 to 40320 minutes").setMinValue(1).setMaxValue(40320).setRequired(true))
-    .addStringOption(o=>o.setName("reason").setDescription("Reason")),
+    .addStringOption(o=>o.setName("reason").setDescription("Reason")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
   new SlashCommandBuilder().setName("untimeout").setDescription("Remove a member timeout")
-    .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true)),
+    .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
   new SlashCommandBuilder().setName("purge").setDescription("Delete recent messages")
     .addIntegerOption(o=>o.setName("amount").setDescription("1 to 100").setMinValue(1).setMaxValue(100).setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
