@@ -185,7 +185,7 @@ client.on("interactionCreate", async interaction => {
       const raw = interaction.options.getString("duration").trim().toLowerCase();
       let seconds = 0;
       if (raw !== "off" && raw !== "0") {
-        const match = raw.match(/^(\\d+)(s|m|h)?$/);
+        const match = raw.match(/^(\d+)(s|m|h)?$/);
         if (!match) return interaction.reply({content:"Invalid duration. Use 5s, 1m, 2h, or off.",ephemeral:true});
         const amount = Number(match[1]);
         const unit = match[2] || "s";
