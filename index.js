@@ -58,8 +58,8 @@ const commands = [
   new SlashCommandBuilder().setName("autowarns").setDescription("Show AutoMod actions for a member")
     .addUserOption(o=>o.setName("member").setDescription("Member").setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-  new SlashCommandBuilder().setName("slowmode").setDescription("Set channel slowmode")
-    .addIntegerOption(o=>o.setName("seconds").setDescription("0 to 21600 seconds").setRequired(true).setMinValue(0).setMaxValue(21600))
+  new SlashCommandBuilder().setName("slowmode").setDescription("Set or disable channel slowmode")
+    .addStringOption(o=>o.setName("duration").setDescription("Examples: 5s, 1m, 2h, off, 0").setRequired(true).setMaxLength(10))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
   new SlashCommandBuilder().setName("say").setDescription("Send a message in a channel")
     .addStringOption(o=>o.setName("message").setDescription("Message to send").setRequired(true).setMaxLength(2000))
@@ -182,8 +182,23 @@ client.on("interactionCreate", async interaction => {
     }
     if (commandName === "slowmode") {
       if (!staff(member, PermissionFlagsBits.ManageChannels)) return interaction.reply({content:"You need Manage Channels.",ephemeral:true});
-      await interaction.channel.setRateLimitPerUser(interaction.options.getInteger("seconds"));
-      return interaction.reply({content:"Slowmode updated.",ephemeral:true});
+      const raw = interaction.options.getString("duration").trim().toLowerCase();
+      let seconds = 0;
+      if (raw !== "off" && raw !== "0") {
+        const match = raw.match(/^(\\d+)(s|m|h)?$/);
+        if (!match) return interaction.reply({content:"Invalid duration. Use 5s, 1m, 2h, or off.",ephemeral:true});
+        const amount = Number(match[1]);
+        const unit = match[2] || "s";
+        seconds = amount * (unit === "h" ? 3600 : unit === "m" ? 60 : 1);
+        if (!Number.isSafeInteger(seconds) || seconds < 1 || seconds > 21600) {
+          return interaction.reply({content:"Slowmode must be between 1 second and 6 hours (21600 seconds).",ephemeral:true});
+        }
+      }
+      await interaction.channel.setRateLimitPerUser(seconds);
+      const description = seconds === 0
+        ? "Slowmode has been disabled in this channel."
+        : "Slowmode set to " + raw + " (" + seconds + " seconds).";
+      return interaction.reply({embeds:[uiEmbed(description)],ephemeral:true});
     }
     if (commandName === "purge") {
       if (!staff(member, PermissionFlagsBits.ManageMessages)) return interaction.reply({content:"You need Manage Messages.",ephemeral:true});
