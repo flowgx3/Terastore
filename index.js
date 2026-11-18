@@ -275,9 +275,35 @@ client.on("interactionCreate", async interaction => {
       if (!staff(member)) return interaction.reply({content:"You need Moderate Members.",ephemeral:true});
       const user=interaction.options.getUser("member"), target=await guild.members.fetch(user.id);
       if (!target.moderatable) return interaction.reply({content:"I cannot moderate this member due to role hierarchy or permissions.",ephemeral:true});
-      if (commandName==="timeout") await target.timeout(interaction.options.getInteger("minutes")*60000,interaction.options.getString("reason")||"No reason provided");
-      else await target.timeout(null);
-      return interaction.reply({content:commandName==="timeout"?"Timeout applied.":"Timeout removed.",ephemeral:true});
+      if (commandName === "timeout") {
+        const minutes = interaction.options.getInteger("minutes");
+        const reason = interaction.options.getString("reason") || "No reason provided";
+        const durationMs = minutes * 60000;
+        const expiresAt = Date.now() + durationMs;
+        await target.timeout(durationMs, reason);
+        const mutedEmbed = new EmbedBuilder()
+          .setColor(0xD6D34A)
+          .setAuthor({name:client.user.username,iconURL:client.user.displayAvatarURL()})
+          .setTitle("You’ve been muted in " + guild.name + "!")
+          .setDescription("You can no longer speak, join voice channels, or engage with the server in any way.")
+          .addFields(
+            {name:"Reason",value:reason},
+            {name:"Duration",value:minutes >= 60 && minutes % 60 === 0 ? (minutes / 60) + " hour(s)" : minutes + " minute(s)"},
+            {name:"Expires",value:"<t:" + Math.floor(expiresAt / 1000) + ":R>"},
+            {name:"ID",value:interaction.id}
+          )
+          .setTimestamp();
+        let dmSent = true;
+        try { await user.send({embeds:[mutedEmbed]}); } catch { dmSent = false; }
+        await log(guild,"Timeout applied to <@" + user.id + "> by <@" + interaction.user.id + ">. Reason: " + reason);
+        return interaction.reply({content:"Timeout applied to " + user.tag + " for " + minutes + " minute(s)." + (dmSent ? " Notification sent by DM." : " Could not send the DM."),ephemeral:true});
+      }
+      await target.timeout(null);
+      const unmuteEmbed = uiEmbed("Your timeout in **" + guild.name + "** has been removed.")
+        .setTitle("Your mute has been removed")
+        .setColor(0x4F9BD3);
+      await user.send({embeds:[unmuteEmbed]}).catch(()=>{});
+      return interaction.reply({content:"Timeout removed.",ephemeral:true});
     }
   } catch (error) {
     console.error("Command error:",error);
