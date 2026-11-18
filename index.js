@@ -158,7 +158,7 @@ client.on("interactionCreate", async interaction => {
         "**Util**\n\`/help\`, \`/userinfo\`, \`/serverinfo\`\n\n" +
         "**Moderation**\n\`/warn\`, \`/warnings\`, \`/autowarns\`, \`/addrole\`, \`/slowmode\`, \`/say\`, \`/purge\`, \`/kick\`, \`/ban\`, \`/timeout\`, \`/untimeout\`, \`/removewarn\`, \`/clearwarnings\`\n\n" +
         "Run \`/help\` followed by a command to view its options.";
-      return interaction.reply({ embeds:[uiEmbed(description)] });
+      return interaction.reply({ embeds:[uiEmbed(description).setFooter({ text:"Terastore Utilities • Command list" })] });
     }
     if (commandName === "serverinfo") {
       const e = new EmbedBuilder().setTitle(guild.name).addFields(
@@ -211,11 +211,13 @@ client.on("interactionCreate", async interaction => {
       if (commandName === "warnings") {
         const list=db.warnings[k];
         if (!list.length) return interaction.reply({ content:"You have no infractions.", allowedMentions:{parse:[]} });
-        const lines = list.slice(-12).map((w,i) =>
+        const lines = list.slice(-10).map((w,i) =>
           "**ID:** \`" + (w.id || (user.id + "-" + (i+1))) + "\`\n" +
           "**Warn** - " + (w.reason || "No reason provided") + " - " + shortDate(w.at)
         );
-        return interaction.reply({ embeds:[uiEmbed("Showing all infractions for " + user.tag + ".\n\n" + lines.join("\n\n"))] });
+        const embed = uiEmbed("Showing all infractions for " + user.toString() + " ☑.\n\n" + lines.join("\n\n"))
+          .setFooter({ text:"Terastore Utilities • " + list.length + " infraction(s)" });
+        return interaction.reply({ embeds:[embed], allowedMentions:{parse:[]} });
       }
       if (commandName === "removewarn") {
         const n=interaction.options.getInteger("number");
@@ -229,11 +231,15 @@ client.on("interactionCreate", async interaction => {
       }
       const list=db.automod[k] || [];
       if (!list.length) return interaction.reply({ content:"You have no automod infractions.", allowedMentions:{parse:[]} });
-      const lines = list.slice(-12).map((a,i) =>
+      const lines = list.slice(-10).map((a,i) =>
         "**ID:** \`" + (a.id || (user.id + "-AM-" + (i+1))) + "\`\n" +
-        "**AutoMod** - " + String(a.action || "Action") + " - " + shortDate(a.at)
+        "**AutoMod** - " + String(a.action || "Action") +
+        (a.matchedKeyword ? " - matched: \`" + String(a.matchedKeyword).slice(0,80) + "\`" : "") +
+        " - " + shortDate(a.at)
       );
-      return interaction.reply({ embeds:[uiEmbed("Showing all automod infractions for " + user.tag + ".\n\n" + lines.join("\n\n"))] });
+      const embed = uiEmbed("Showing all automod infractions for " + user.toString() + " ☑.\n\n" + lines.join("\n\n"))
+        .setFooter({ text:"Terastore Utilities • " + list.length + " AutoMod infraction(s)" });
+      return interaction.reply({ embeds:[embed], allowedMentions:{parse:[]} });
     }
     if (commandName === "kick" || commandName === "ban") {
       const required=commandName==="kick"?PermissionFlagsBits.KickMembers:PermissionFlagsBits.BanMembers;
