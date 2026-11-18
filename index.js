@@ -108,6 +108,17 @@ const client = new Client({
   partials: [Partials.GuildMember, Partials.User]
 });
 
+const UI_COLOR = 0x4F9BD3;
+function uiEmbed(description) {
+  const embed = new EmbedBuilder().setColor(UI_COLOR).setDescription(description || null);
+  if (client.user) embed.setAuthor({ name: client.user.username, iconURL: client.user.displayAvatarURL() });
+  embed.setTimestamp();
+  return embed;
+}
+function shortDate(iso) {
+  const seconds = Math.floor(new Date(iso).getTime() / 1000);
+  return Number.isFinite(seconds) ? "<t:" + seconds + ":f>" : "Unknown date";
+}
 async function log(guild, text) {
   if (!LOG_CHANNEL_ID) return;
   const channel = guild.channels.cache.get(LOG_CHANNEL_ID);
@@ -143,9 +154,11 @@ client.on("interactionCreate", async interaction => {
       return;
     }
     if (commandName === "help") {
-      return interaction.reply({ephemeral:true,content:
-        "**Moderation:** /warn /warnings /removewarn /clearwarnings /autowarns /kick /ban /timeout /untimeout\n" +
-        "**Utilities:** /addrole /say /slowmode /purge /userinfo /serverinfo /reboot"});
+      const description =
+        "**Util**\n\`/help\`, \`/userinfo\`, \`/serverinfo\`\n\n" +
+        "**Moderation**\n\`/warn\`, \`/warnings\`, \`/autowarns\`, \`/addrole\`, \`/slowmode\`, \`/say\`, \`/purge\`, \`/kick\`, \`/ban\`, \`/timeout\`, \`/untimeout\`, \`/removewarn\`, \`/clearwarnings\`\n\n" +
+        "Run \`/help\` followed by a command to view its options.";
+      return interaction.reply({ embeds:[uiEmbed(description)] });
     }
     if (commandName === "serverinfo") {
       const e = new EmbedBuilder().setTitle(guild.name).addFields(
@@ -191,13 +204,18 @@ client.on("interactionCreate", async interaction => {
       db.warnings[k] ||= [];
       if (commandName === "warn") {
         const reason=interaction.options.getString("reason");
-        db.warnings[k].push({reason,by:interaction.user.id,at:new Date().toISOString()});
+        db.warnings[k].push({id:require("node:crypto").randomUUID().replace(/-/g,"").slice(0,18),reason,by:interaction.user.id,at:new Date().toISOString()});
         saveData(); await log(guild,"Warning issued to <@"+user.id+"> by <@"+interaction.user.id+">: "+reason);
         return interaction.reply({content:"Warned "+user.tag+". Total warnings: "+db.warnings[k].length,ephemeral:true});
       }
       if (commandName === "warnings") {
         const list=db.warnings[k];
-        return interaction.reply({ephemeral:true,content:list.length ? list.map((w,i)=>(i+1)+". "+w.reason+" — <@"+w.by+"> — <t:"+Math.floor(new Date(w.at).getTime()/1000)+":R>").join("\n") : "No warnings found."});
+        if (!list.length) return interaction.reply({ content:"You have no infractions.", allowedMentions:{parse:[]} });
+        const lines = list.slice(-12).map((w,i) =>
+          "**ID:** \`" + (w.id || (user.id + "-" + (i+1))) + "\`\n" +
+          "**Warn** - " + (w.reason || "No reason provided") + " - " + shortDate(w.at)
+        );
+        return interaction.reply({ embeds:[uiEmbed("Showing all infractions for " + user.tag + ".\n\n" + lines.join("\n\n"))] });
       }
       if (commandName === "removewarn") {
         const n=interaction.options.getInteger("number");
@@ -210,7 +228,12 @@ client.on("interactionCreate", async interaction => {
         return interaction.reply({content:"All warnings cleared.",ephemeral:true});
       }
       const list=db.automod[k] || [];
-      return interaction.reply({ephemeral:true,content:list.length ? list.slice(-15).map((a,i)=>(i+1)+". "+a.action+" — <t:"+Math.floor(new Date(a.at).getTime()/1000)+":R> — rule "+a.ruleId).join("\n") : "No AutoMod records found."});
+      if (!list.length) return interaction.reply({ content:"You have no automod infractions.", allowedMentions:{parse:[]} });
+      const lines = list.slice(-12).map((a,i) =>
+        "**ID:** \`" + (a.id || (user.id + "-AM-" + (i+1))) + "\`\n" +
+        "**AutoMod** - " + String(a.action || "Action") + " - " + shortDate(a.at)
+      );
+      return interaction.reply({ embeds:[uiEmbed("Showing all automod infractions for " + user.tag + ".\n\n" + lines.join("\n\n"))] });
     }
     if (commandName === "kick" || commandName === "ban") {
       const required=commandName==="kick"?PermissionFlagsBits.KickMembers:PermissionFlagsBits.BanMembers;
